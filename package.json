@@ -5,6 +5,11 @@
   "version": "0.2.2",
   "publisher": "filispeen",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/filispeen/LocalActionsJustLikeGitHub.git"
+  },
+  "icon": "resources/icon.png",
   "engines": {
     "vscode": "^1.90.0"
   },

@@ -16,3 +16,4 @@ vstest/**
 **/*.map
 *.zip
 *.vsix
+resources/icon-source.svg

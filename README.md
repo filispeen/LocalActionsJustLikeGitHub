@@ -28,6 +28,45 @@ Run GitHub Actions workflows locally through the `nektos/act` CLI with a page th
 - **nektos/act CLI**: Required for local workflow execution. Tested against **act v0.2.89**.
 - **Docker Engine**: Optional. Host runners run directly on your machine without Docker. Docker is only required for containerized environments.
 
+## Preview
+
+### Actions Dashboard & Local Sidebar
+
+View workflows, trigger runs, and inspect environment components and settings directly in VS Code.
+
+![Actions Dashboard](assets/1.png)
+
+### Run Workflow with Custom Inputs
+
+Configure workflows, select specific jobs, customize dispatch inputs, and override runner settings before launching.
+
+![Run Workflow Dialog](assets/2.png)
+
+### Live Workflow Runs
+
+Track live execution status, trigger details, elapsed duration, and control active jobs in real time.
+
+![Live Workflow Run](assets/3.png)
+
+### Run Summary & Job Dependency Graph
+
+Inspect the run overview, execution metadata, and interactive job dependency graph (DAG) derived from `needs`.
+
+![Job Dependency Graph](assets/4.png)
+
+### Step-by-Step Log Streaming
+
+Monitor workflow execution step by step in exact declared sequence with numbered log lines and duration tracking.
+
+![Step Logs](assets/5.png)
+
+### Colored Terminal Output & ANSI Logs
+
+Full ANSI color support, log search, timestamp toggles, and seamless switching between step logs and raw logs.
+
+![Test Execution Logs](assets/6.png)
+
+
 ## Extension Settings
 
 | Setting | Type | Default | Description |
