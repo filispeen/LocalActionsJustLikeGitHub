@@ -18,6 +18,12 @@ export default tseslint.config(
     }
   },
   {
-    ignores: ['dist/**', 'node_modules/**', 'reference/**']
+    files: ['**/*.cjs'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off'
+    }
+  },
+  {
+    ignores: ['dist/**', 'node_modules/**', 'reference/**', '.vscode-test/**']
   }
 );

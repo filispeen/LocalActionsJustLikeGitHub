@@ -29,7 +29,7 @@ export function RunList({
 
   return (
     <div className="Box-body p-0" style={{ overflowY: 'auto', flex: 1 }}>
-      <ul className="list-style-none m-0 p-0">
+      <ul className="list-style-none m-0 p-0" role="list">
         {runs.map((run) => {
           const isSelected = selectedRunId === run.id;
           const duration = formatDuration(run.durationMs);
@@ -38,6 +38,9 @@ export function RunList({
           return (
             <li
               key={run.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Run ${run.workflowName} status ${run.status}`}
               className="Box-row d-flex flex-items-center flex-justify-between p-3 border-bottom"
               style={{
                 cursor: 'pointer',
@@ -47,6 +50,12 @@ export function RunList({
                   : 'transparent'
               }}
               onClick={() => onSelectRun(run)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectRun(run);
+                }
+              }}
             >
               <div className="d-flex flex-items-center flex-1 mr-3 min-width-0">
                 <div className="mr-3 d-flex flex-items-center">
@@ -81,6 +90,7 @@ export function RunList({
                 {run.status === 'in_progress' && onCancelRun && (
                   <button
                     type="button"
+                    aria-label={`Cancel run ${run.id}`}
                     className="btn btn-sm btn-danger mr-2"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -94,6 +104,7 @@ export function RunList({
                 {onDeleteRun && (
                   <button
                     type="button"
+                    aria-label={`Delete run ${run.id}`}
                     className="btn btn-sm btn-invisible"
                     title="Delete run"
                     style={{ color: 'var(--color-fg-muted, #8b949e)' }}

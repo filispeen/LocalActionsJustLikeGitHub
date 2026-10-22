@@ -23,6 +23,7 @@ export function Sidebar({
 
   return (
     <aside
+      aria-label="Workflows navigation"
       className="border-right"
       style={{
         width: 280,
@@ -41,6 +42,7 @@ export function Sidebar({
           type="text"
           className="form-control input-sm width-full"
           placeholder="Filter workflows"
+          aria-label="Filter workflows"
           value={filterQuery}
           onChange={(e) => setFilterQuery(e.target.value)}
           style={{
@@ -51,11 +53,21 @@ export function Sidebar({
         />
       </div>
 
-      <nav className="p-2">
-        <ul className="ActionList">
+      <nav aria-label="Workflows list" className="p-2">
+        <ul className="ActionList" role="list">
           <li
+            role="button"
+            tabIndex={0}
+            aria-label="All workflows"
+            aria-selected={selectedWorkflowPath === undefined}
             className={`ActionList-item ${selectedWorkflowPath === undefined ? 'ActionList-item--navActive' : ''}`}
             onClick={() => onSelectWorkflow(undefined)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelectWorkflow(undefined);
+              }
+            }}
             style={{
               cursor: 'pointer',
               backgroundColor: selectedWorkflowPath === undefined ? 'var(--color-action-list-item-default-selected-bg, #1f242c)' : 'transparent',
@@ -75,8 +87,18 @@ export function Sidebar({
             return (
               <li
                 key={wf.filePath}
+                role="button"
+                tabIndex={0}
+                aria-label={`Workflow ${wf.name}`}
+                aria-selected={isSelected}
                 className={`ActionList-item ${isSelected ? 'ActionList-item--navActive' : ''}`}
                 onClick={() => onSelectWorkflow(wf.filePath)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectWorkflow(wf.filePath);
+                  }
+                }}
                 style={{
                   cursor: 'pointer',
                   backgroundColor: isSelected ? 'var(--color-action-list-item-default-selected-bg, #1f242c)' : 'transparent',
@@ -85,11 +107,16 @@ export function Sidebar({
               >
                 <span className="ActionList-content d-flex flex-justify-between flex-items-center width-full p-2">
                   <span
-                    className="ActionList-item-label f6 css-truncate css-truncate-target"
+                    className="ActionList-item-label f6 css-truncate css-truncate-target d-flex flex-items-center gap-1"
                     title={wf.name}
                     style={{ maxWidth: 180 }}
                   >
-                    {wf.name}
+                    {!wf.isValid && (
+                      <span className="color-fg-danger" title={`Error: ${wf.error}`}>
+                        ⚠
+                      </span>
+                    )}
+                    <span>{wf.name}</span>
                   </span>
                   <span className="Counter Counter--gray">{wfRunsCount}</span>
                 </span>

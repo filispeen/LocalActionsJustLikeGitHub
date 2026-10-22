@@ -116,12 +116,12 @@ Done when: settings change the executed act command as expected.
 
 ## Phase 8: Polish and release
 
-- [ ] Empty and error states: act missing, Docker not running, no workflows, invalid workflow
-- [ ] Keyboard navigation and aria labels
-- [ ] Integration tests with @vscode/test-electron
-- [ ] Original icon, README with screenshots, CHANGELOG up to date
-- [ ] npm run package produces a .vsix that installs and passes a smoke test
-- [ ] Ask the user before any publishing
+- [x] Empty and error states: act missing, Docker not running, no workflows, invalid workflow
+- [x] Keyboard navigation and aria labels
+- [x] Integration tests with @vscode/test-electron
+- [x] Original icon, README with screenshots, CHANGELOG up to date
+- [x] npm run package produces a .vsix that installs and passes a smoke test
+- [x] Ask the user before any publishing
 
 ## Risks
 

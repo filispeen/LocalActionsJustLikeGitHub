@@ -196,6 +196,32 @@ export function App(): React.ReactElement {
               onOpenFile={handleOpenFile}
             />
 
+            {selectedWorkflow && !selectedWorkflow.isValid && (
+              <div
+                className="flash flash-error m-3 d-flex flex-justify-between flex-items-center"
+                role="alert"
+              >
+                <div>
+                  <strong>Invalid workflow definition: </strong>
+                  <span>{selectedWorkflow.error}</span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => handleOpenFile(selectedWorkflow.filePath)}
+                >
+                  Edit file
+                </button>
+              </div>
+            )}
+
+            {workflows.length === 0 && (
+              <div className="flash flash-warn m-3" role="status">
+                <strong>No workflows found: </strong>
+                <span>Add GitHub Actions YAML files to <code>.github/workflows</code> to run them locally.</span>
+              </div>
+            )}
+
             <FilterBar
               query={query}
               onQueryChange={setQuery}
