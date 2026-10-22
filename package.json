@@ -27,6 +27,10 @@
     "views": {
       "local-actions": [
         {
+          "id": "localActions.dashboardView",
+          "name": "Dashboard"
+        },
+        {
           "id": "localActions.componentsView",
           "name": "Components"
         },
@@ -40,11 +44,24 @@
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "localActions.dashboardView",
+        "contents": "[$(dashboard) Open Actions Dashboard](command:localActions.openActionsDashboard)"
+      }
+    ],
     "commands": [
       {
+        "command": "localActions.openActionsDashboard",
+        "title": "Open Actions Dashboard",
+        "category": "Local Actions",
+        "icon": "$(dashboard)"
+      },
+      {
         "command": "localActions.openActionsPage",
-        "title": "Open Actions Page",
-        "category": "Local Actions"
+        "title": "Open Actions Dashboard",
+        "category": "Local Actions",
+        "icon": "$(dashboard)"
       },
       {
         "command": "localActions.refreshComponents",
@@ -125,6 +142,11 @@
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "localActions.openActionsDashboard",
+          "when": "view == localActions.dashboardView",
+          "group": "navigation"
+        },
         {
           "command": "localActions.refreshComponents",
           "when": "view == localActions.componentsView",

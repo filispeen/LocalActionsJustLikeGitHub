@@ -12,6 +12,7 @@ async function run() {
 
   const commands = await vscode.commands.getCommands(true);
   const expectedCommands = [
+    'localActions.openActionsDashboard',
     'localActions.openActionsPage',
     'localActions.refreshComponents',
     'localActions.refreshWorkflows',

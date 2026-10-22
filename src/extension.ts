@@ -223,6 +223,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     discovery.registerWatcher(),
 
+    vscode.window.registerTreeDataProvider('localActions.dashboardView', {
+      getTreeItem: () => ({}),
+      getChildren: () => []
+    }),
+
+    vscode.commands.registerCommand('localActions.openActionsDashboard', () => {
+      ActionsPanel.render(
+        context.extensionUri,
+        store,
+        discovery,
+        executeRun,
+        cancelRun
+      );
+    }),
+
     vscode.commands.registerCommand('localActions.openActionsPage', () => {
       ActionsPanel.render(
         context.extensionUri,
