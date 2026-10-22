@@ -11,8 +11,11 @@ export type HostToWebviewMessage =
 
 export type WebviewToHostMessage =
   | { type: 'ready' }
-  | { type: 'runWorkflow'; workflowFilePath: string }
+  | { type: 'runWorkflow'; workflowFilePath: string; jobId?: string }
   | { type: 'cancelRun'; runId: string }
   | { type: 'deleteRun'; runId: string }
+  | { type: 'rerunRun'; runId: string }
+  | { type: 'rerunFailedJobs'; runId: string }
+  | { type: 'saveLogsToFile'; runId: string }
   | { type: 'openWorkflowFile'; filePath: string }
   | { type: 'requestLog'; runId: string };

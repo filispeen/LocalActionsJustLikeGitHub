@@ -87,11 +87,11 @@ Done when: runs appear live and filters work.
 
 ## Phase 5: Run detail
 
-- [ ] Summary: trigger, status, total duration
-- [ ] Job list and a job dependency graph from needs
-- [ ] Job view: collapsible steps with status and duration
-- [ ] Logs: ANSI colors, auto-scroll while running, search, copy, timestamp toggle, virtualized for large logs
-- [ ] Actions: cancel, re-run all, re-run failed jobs, delete run, save logs to file
+- [x] Summary: trigger, status, total duration
+- [x] Job list and a job dependency graph from needs
+- [x] Job view: collapsible steps with status and duration
+- [x] Logs: ANSI colors, auto-scroll while running, search, copy, timestamp toggle, virtualized for large logs
+- [x] Actions: cancel, re-run all, re-run failed jobs, delete run, save logs to file
 
 Done when: a finished run can be inspected step by step like on GitHub.
 

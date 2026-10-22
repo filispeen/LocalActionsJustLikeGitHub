@@ -1,11 +1,12 @@
 import * as crypto from 'node:crypto';
+import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
 import { RunStore } from '../../runs/store';
 import { WorkflowRun } from '../../runs/types';
 import { HostToWebviewMessage, WebviewToHostMessage } from '../../shared/messages';
 import { WorkflowDiscovery } from '../../workflows/discovery';
 
-export type RunWorkflowHandler = (workflowFilePath: string) => Promise<void>;
+export type RunWorkflowHandler = (workflowFilePath: string, jobId?: string) => Promise<WorkflowRun | undefined>;
 export type CancelRunHandler = (runId: string) => Promise<void>;
 
 export class ActionsPanel {
@@ -123,7 +124,17 @@ export class ActionsPanel {
       return false;
     }
     const candidate = message as Record<string, unknown>;
-    const validTypes = ['ready', 'runWorkflow', 'cancelRun', 'deleteRun', 'openWorkflowFile', 'requestLog'];
+    const validTypes = [
+      'ready',
+      'runWorkflow',
+      'cancelRun',
+      'deleteRun',
+      'rerunRun',
+      'rerunFailedJobs',
+      'saveLogsToFile',
+      'openWorkflowFile',
+      'requestLog'
+    ];
     return typeof candidate.type === 'string' && validTypes.includes(candidate.type);
   }
 
@@ -138,7 +149,7 @@ export class ActionsPanel {
         break;
 
       case 'runWorkflow':
-        await this.onRunWorkflow(message.workflowFilePath);
+        await this.onRunWorkflow(message.workflowFilePath, message.jobId);
         break;
 
       case 'cancelRun':
@@ -148,6 +159,38 @@ export class ActionsPanel {
       case 'deleteRun':
         await this.store.deleteRun(message.runId);
         break;
+
+      case 'rerunRun': {
+        const run = this.store.getRun(message.runId);
+        if (run) {
+          await this.onRunWorkflow(run.workflowFilePath);
+        }
+        break;
+      }
+
+      case 'rerunFailedJobs': {
+        const run = this.store.getRun(message.runId);
+        if (run) {
+          const failedJob = run.jobs.find((j) => j.status === 'failure');
+          if (failedJob) {
+            await this.onRunWorkflow(run.workflowFilePath, failedJob.id);
+          }
+        }
+        break;
+      }
+
+      case 'saveLogsToFile': {
+        const logContent = await this.store.getLog(message.runId);
+        const targetUri = await vscode.window.showSaveDialog({
+          defaultUri: vscode.Uri.file(`run-${message.runId}.log`),
+          filters: { 'Log files': ['log', 'txt'] }
+        });
+        if (targetUri) {
+          await fs.writeFile(targetUri.fsPath, logContent, 'utf8');
+          vscode.window.showInformationMessage(`Logs saved to: ${targetUri.fsPath}`);
+        }
+        break;
+      }
 
       case 'openWorkflowFile': {
         const doc = await vscode.workspace.openTextDocument(message.filePath);

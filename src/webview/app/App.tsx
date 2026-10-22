@@ -3,6 +3,7 @@ import { RunStatus, WorkflowRun } from '../../runs/types';
 import { ParsedWorkflow } from '../../workflows/types';
 import { FilterBar } from './FilterBar';
 import { Header } from './Header';
+import { RunDetail } from './RunDetail';
 import { RunList } from './RunList';
 import { Sidebar } from './Sidebar';
 import { getVsCodeApi, subscribeToHostMessages } from './vscode';
@@ -80,6 +81,11 @@ export function App(): React.ReactElement {
     [workflows, selectedWorkflowPath]
   );
 
+  const selectedRun = useMemo(
+    () => runs.find((r) => r.id === selectedRunId),
+    [runs, selectedRunId]
+  );
+
   const availableEvents = useMemo(() => {
     const set = new Set<string>();
     for (const r of runs) {
@@ -120,8 +126,8 @@ export function App(): React.ReactElement {
     });
   }, [runs, selectedWorkflowPath, statusFilter, eventFilter, query]);
 
-  const handleRunWorkflow = (workflowFilePath: string) => {
-    vscode.postMessage({ type: 'runWorkflow', workflowFilePath });
+  const handleRunWorkflow = (workflowFilePath: string, jobId?: string) => {
+    vscode.postMessage({ type: 'runWorkflow', workflowFilePath, jobId });
   };
 
   const handleCancelRun = (runId: string) => {
@@ -157,30 +163,40 @@ export function App(): React.ReactElement {
       />
 
       <main className="d-flex flex-column flex-1 min-width-0 height-full">
-        <Header
-          selectedWorkflow={selectedWorkflow}
-          workflows={workflows}
-          onRunWorkflow={handleRunWorkflow}
-          onOpenFile={handleOpenFile}
-        />
+        {selectedRun ? (
+          <RunDetail
+            run={selectedRun}
+            onBack={() => setSelectedRunId(undefined)}
+            onRunWorkflow={handleRunWorkflow}
+          />
+        ) : (
+          <>
+            <Header
+              selectedWorkflow={selectedWorkflow}
+              workflows={workflows}
+              onRunWorkflow={handleRunWorkflow}
+              onOpenFile={handleOpenFile}
+            />
 
-        <FilterBar
-          query={query}
-          onQueryChange={setQuery}
-          statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
-          eventFilter={eventFilter}
-          onEventFilterChange={setEventFilter}
-          availableEvents={availableEvents}
-        />
+            <FilterBar
+              query={query}
+              onQueryChange={setQuery}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              eventFilter={eventFilter}
+              onEventFilterChange={setEventFilter}
+              availableEvents={availableEvents}
+            />
 
-        <RunList
-          runs={filteredRuns}
-          selectedRunId={selectedRunId}
-          onSelectRun={(run) => setSelectedRunId(run.id)}
-          onCancelRun={handleCancelRun}
-          onDeleteRun={handleDeleteRun}
-        />
+            <RunList
+              runs={filteredRuns}
+              selectedRunId={selectedRunId}
+              onSelectRun={(run) => setSelectedRunId(run.id)}
+              onCancelRun={handleCancelRun}
+              onDeleteRun={handleDeleteRun}
+            />
+          </>
+        )}
       </main>
     </div>
   );
