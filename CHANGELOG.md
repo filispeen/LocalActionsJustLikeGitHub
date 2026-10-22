@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## v0.1.16
+
+- Parse declared steps from workflow YAML and initialize job steps in exact declaration sequence.
+- Preserve all log lines across step partitions without dropping lines after step success or failure.
+- Transition unexecuted queued steps to skipped status on failure, matching GitHub Actions behavior.
+- Add raw log view toggle in the steps log viewer.
+- Reconstruct step structures from log output for runs with empty stored steps.
+- Add skipped step status icon styling.
+
 ## v0.1.15
 
 - Queue stdout and stderr line processing in ActRunner sequentially to preserve log line ordering.
