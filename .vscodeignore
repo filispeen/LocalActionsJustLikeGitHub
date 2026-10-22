@@ -14,3 +14,5 @@ PROMPT.md
 AGENTS.md
 vstest/**
 **/*.map
+*.zip
+*.vsix
