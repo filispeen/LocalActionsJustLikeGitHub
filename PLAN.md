@@ -51,11 +51,11 @@ Done when: the view correctly reports installed, missing and not running states.
 
 ## Phase 2: Workflow discovery
 
-- [ ] Find .github/workflows/*.yml and *.yaml in every workspace folder, watch for changes
-- [ ] Parse name, events (string, array and map forms of on), jobs, needs, runs-on, matrix presence, workflow_dispatch inputs
-- [ ] Tolerate invalid YAML and surface the error in the UI
-- [ ] Workflows tree view with Run and Open File actions
-- [ ] Unit tests with fixture workflows
+- [x] Find .github/workflows/*.yml and *.yaml in every workspace folder, watch for changes
+- [x] Parse name, events (string, array and map forms of on), jobs, needs, runs-on, matrix presence, workflow_dispatch inputs
+- [x] Tolerate invalid YAML and surface the error in the UI
+- [x] Workflows tree view with Run and Open File actions
+- [x] Unit tests with fixture workflows
 
 Done when: tree matches the files on disk and updates live.
 

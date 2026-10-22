@@ -29,6 +29,10 @@
         {
           "id": "localActions.componentsView",
           "name": "Components"
+        },
+        {
+          "id": "localActions.workflowsView",
+          "name": "Workflows"
         }
       ]
     },
@@ -53,6 +57,30 @@
         "command": "localActions.openDockerGuide",
         "title": "Docker Guidance",
         "category": "Local Actions"
+      },
+      {
+        "command": "localActions.refreshWorkflows",
+        "title": "Refresh Workflows",
+        "category": "Local Actions",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "localActions.openWorkflowFile",
+        "title": "Open Workflow File",
+        "category": "Local Actions",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "localActions.runWorkflow",
+        "title": "Run Workflow",
+        "category": "Local Actions",
+        "icon": "$(play)"
+      },
+      {
+        "command": "localActions.runJob",
+        "title": "Run Job",
+        "category": "Local Actions",
+        "icon": "$(play)"
       }
     ],
     "menus": {
@@ -61,6 +89,28 @@
           "command": "localActions.refreshComponents",
           "when": "view == localActions.componentsView",
           "group": "navigation"
+        },
+        {
+          "command": "localActions.refreshWorkflows",
+          "when": "view == localActions.workflowsView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "localActions.openWorkflowFile",
+          "when": "view == localActions.workflowsView && (viewItem == workflowItem || viewItem == invalidWorkflowItem || viewItem == jobItem)",
+          "group": "inline"
+        },
+        {
+          "command": "localActions.runWorkflow",
+          "when": "view == localActions.workflowsView && viewItem == workflowItem",
+          "group": "inline"
+        },
+        {
+          "command": "localActions.runJob",
+          "when": "view == localActions.workflowsView && viewItem == jobItem",
+          "group": "inline"
         }
       ]
     },

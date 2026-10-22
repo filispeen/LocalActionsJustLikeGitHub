@@ -1,18 +1,50 @@
 import * as vscode from 'vscode';
 import { ActionsPanel } from './webview/host/ActionsPanel';
 import { ComponentsViewProvider } from './views/ComponentsView';
+import { WorkflowDiscovery } from './workflows/discovery';
+import { WorkflowFileTreeItem, WorkflowJobTreeItem, WorkflowsViewProvider } from './views/WorkflowsView';
 
 export function activate(context: vscode.ExtensionContext): void {
   const componentsProvider = new ComponentsViewProvider();
   vscode.window.registerTreeDataProvider('localActions.componentsView', componentsProvider);
 
+  const discovery = new WorkflowDiscovery();
+  const workflowsProvider = new WorkflowsViewProvider(discovery);
+  vscode.window.registerTreeDataProvider('localActions.workflowsView', workflowsProvider);
+
   context.subscriptions.push(
+    discovery.registerWatcher(),
+
     vscode.commands.registerCommand('localActions.openActionsPage', () => {
       ActionsPanel.render(context.extensionUri);
     }),
 
     vscode.commands.registerCommand('localActions.refreshComponents', () => {
       return componentsProvider.refresh();
+    }),
+
+    vscode.commands.registerCommand('localActions.refreshWorkflows', () => {
+      return workflowsProvider.refresh();
+    }),
+
+    vscode.commands.registerCommand('localActions.openWorkflowFile', async (item?: WorkflowFileTreeItem | WorkflowJobTreeItem) => {
+      const filePath = item?.workflow.filePath;
+      if (filePath) {
+        const doc = await vscode.workspace.openTextDocument(filePath);
+        await vscode.window.showTextDocument(doc);
+      }
+    }),
+
+    vscode.commands.registerCommand('localActions.runWorkflow', async (item?: WorkflowFileTreeItem) => {
+      if (item?.workflow) {
+        vscode.window.showInformationMessage(`Run initiated for workflow: ${item.workflow.name}`);
+      }
+    }),
+
+    vscode.commands.registerCommand('localActions.runJob', async (item?: WorkflowJobTreeItem) => {
+      if (item?.job) {
+        vscode.window.showInformationMessage(`Run initiated for job: ${item.job.name}`);
+      }
     }),
 
     vscode.commands.registerCommand('localActions.openActInstallGuide', async () => {
@@ -45,6 +77,8 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     })
   );
+
+  discovery.scan();
 }
 
 export function deactivate(): void {
