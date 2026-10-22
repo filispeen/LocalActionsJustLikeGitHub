@@ -39,6 +39,7 @@ export class ActRunner {
       const child = spawn(this.actPath, argv, {
         cwd: this.cwd,
         windowsHide: true,
+        detached: process.platform !== 'win32',
         env: {
           ...process.env,
           CI: 'true'
