@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { RunStatus, WorkflowRun } from '../../runs/types';
 import { RunWorkflowPayload } from '../../shared/messages';
 import { ParsedWorkflow } from '../../workflows/types';
-import { FilterBar } from './FilterBar';
+import { FilterBar, RunFilterSelects } from './FilterBar';
 import { Header } from './Header';
 import { RunDetail } from './RunDetail';
 import { RunDialog } from './RunDialog';
@@ -151,6 +151,22 @@ export function App(): React.ReactElement {
     });
   }, [runs, selectedWorkflowPath, statusFilter, eventFilter, query]);
 
+  const runNumbers = useMemo(() => {
+    const byWorkflow = new Map<string, WorkflowRun[]>();
+    for (const r of runs) {
+      byWorkflow.set(r.workflowFilePath, [...(byWorkflow.get(r.workflowFilePath) ?? []), r]);
+    }
+    const out: Record<string, number> = {};
+    for (const list of byWorkflow.values()) {
+      [...list]
+        .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime())
+        .forEach((r, i) => {
+          out[r.id] = i + 1;
+        });
+    }
+    return out;
+  }, [runs]);
+
   const handleOpenRunDialog = (filePath?: string, jobId?: string) => {
     setDialogWorkflowPath(filePath || selectedWorkflowPath);
     setDialogJobId(jobId);
@@ -174,35 +190,31 @@ export function App(): React.ReactElement {
   };
 
   return (
-    <div
-      className="d-flex flex-row width-full height-full"
-      style={{
-        height: '100vh',
-        backgroundColor: 'var(--color-canvas-default, #0d1117)',
-        color: 'var(--color-fg-default, #c9d1d9)',
-        overflow: 'hidden'
-      }}
-    >
-      <Sidebar
-        workflows={workflows}
-        runs={runs}
-        selectedWorkflowPath={selectedWorkflowPath}
-        onSelectWorkflow={(path) => {
-          setSelectedWorkflowPath(path);
-          setSelectedRunId(undefined);
-        }}
-      />
+    <div className="gh-app">
+      {!selectedRun && (
+        <Sidebar
+          workflows={workflows}
+          runs={runs}
+          selectedWorkflowPath={selectedWorkflowPath}
+          onSelectWorkflow={(path) => {
+            setSelectedWorkflowPath(path);
+            setSelectedRunId(undefined);
+          }}
+        />
+      )}
 
-      <main className="d-flex flex-column flex-1 min-width-0 height-full">
+      <main className="gh-main">
         {selectedRun ? (
           <RunDetail
+            key={selectedRun.id}
             run={selectedRun}
+            runNumber={runNumbers[selectedRun.id]}
             logs={logsByRunId[selectedRun.id] ?? ''}
             onBack={() => setSelectedRunId(undefined)}
-            onRunWorkflow={(filePath, jobId) => handleOpenRunDialog(filePath, jobId)}
+            onOpenFile={handleOpenFile}
           />
         ) : (
-          <>
+          <div className="gh-page">
             <Header
               selectedWorkflow={selectedWorkflow}
               workflows={workflows}
@@ -211,49 +223,46 @@ export function App(): React.ReactElement {
             />
 
             {selectedWorkflow && !selectedWorkflow.isValid && (
-              <div
-                className="flash flash-error m-3 d-flex flex-justify-between flex-items-center"
-                role="alert"
-              >
+              <div className="gh-flash gh-flash-error" role="alert">
                 <div>
                   <strong>Invalid workflow definition: </strong>
                   <span>{selectedWorkflow.error}</span>
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  onClick={() => handleOpenFile(selectedWorkflow.filePath)}
-                >
+                <button type="button" className="gh-btn gh-btn-sm" onClick={() => handleOpenFile(selectedWorkflow.filePath)}>
                   Edit file
                 </button>
               </div>
             )}
 
             {workflows.length === 0 && (
-              <div className="flash flash-warn m-3" role="status">
-                <strong>No workflows found: </strong>
-                <span>Add GitHub Actions YAML files to <code>.github/workflows</code> to run them locally.</span>
+              <div className="gh-flash gh-flash-warn" role="status">
+                <span>
+                  <strong>No workflows found: </strong>
+                  Add GitHub Actions YAML files to <code>.github/workflows</code> to run them locally.
+                </span>
               </div>
             )}
 
-            <FilterBar
-              query={query}
-              onQueryChange={setQuery}
-              statusFilter={statusFilter}
-              onStatusFilterChange={setStatusFilter}
-              eventFilter={eventFilter}
-              onEventFilterChange={setEventFilter}
-              availableEvents={availableEvents}
-            />
+            <FilterBar query={query} onQueryChange={setQuery} />
 
             <RunList
               runs={filteredRuns}
+              runNumbers={runNumbers}
               selectedRunId={selectedRunId}
               onSelectRun={(run) => setSelectedRunId(run.id)}
               onCancelRun={handleCancelRun}
               onDeleteRun={handleDeleteRun}
+              filters={
+                <RunFilterSelects
+                  statusFilter={statusFilter}
+                  onStatusFilterChange={setStatusFilter}
+                  eventFilter={eventFilter}
+                  onEventFilterChange={setEventFilter}
+                  availableEvents={availableEvents}
+                />
+              }
             />
-          </>
+          </div>
         )}
 
         {dialogOpen && (

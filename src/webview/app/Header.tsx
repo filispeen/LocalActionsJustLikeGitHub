@@ -27,77 +27,62 @@ export function Header({
   };
 
   return (
-    <header
-      className="p-3 border-bottom d-flex flex-justify-between flex-items-center"
-      style={{
-        borderColor: 'var(--color-border-default, #30363d)',
-        backgroundColor: 'var(--color-canvas-default, #0d1117)'
-      }}
-    >
-      <div className="d-flex flex-items-center">
-        <h2 className="f4 text-bold m-0" style={{ color: 'var(--color-fg-default, #c9d1d9)' }}>
+    <div className="gh-page-head">
+      <div>
+        <h1>
           {title}
-        </h2>
-        {selectedWorkflow && (
-          <button
-            type="button"
-            className="btn-link ml-3 f6"
-            onClick={() => onOpenFile?.(selectedWorkflow.filePath)}
-            style={{ color: 'var(--color-accent-fg, #58a6ff)' }}
-          >
-            {selectedWorkflow.fileName}
-          </button>
+          {selectedWorkflow && (
+            <button
+              type="button"
+              className="gh-link gh-fname"
+              onClick={() => onOpenFile?.(selectedWorkflow.filePath)}
+            >
+              {selectedWorkflow.fileName}
+            </button>
+          )}
+        </h1>
+        {!selectedWorkflow && (
+          <div className="gh-run-sub gh-sub">Showing runs from all workflows</div>
         )}
       </div>
 
       <div style={{ position: 'relative' }}>
-        <button
-          type="button"
-          className="btn btn-sm btn-primary"
-          onClick={handleRunClick}
-        >
-          Run workflow {selectedWorkflow ? '' : '▾'}
+        <button type="button" className="gh-btn" onClick={handleRunClick}>
+          Run workflow{selectedWorkflow ? '' : ' ▾'}
         </button>
 
         {!selectedWorkflow && dropdownOpen && (
           <div
-            className="SelectMenu right-0 mt-1"
             style={{
               position: 'absolute',
+              right: 0,
+              top: 36,
               zIndex: 100,
-              backgroundColor: 'var(--color-canvas-overlay, #161b22)',
-              border: '1px solid var(--color-border-default, #30363d)',
-              borderRadius: 6,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-              minWidth: 220
+              minWidth: 240,
+              background: 'var(--gh-subtle)',
+              border: '1px solid var(--gh-border)',
+              borderRadius: 12,
+              boxShadow: '0 8px 24px rgba(1,4,9,.85)',
+              padding: 8
             }}
           >
-            <div className="SelectMenu-header p-2 border-bottom" style={{ borderColor: 'var(--color-border-default, #30363d)' }}>
-              <span className="SelectMenu-title f6 text-bold">Select a workflow to run</span>
-            </div>
-            <div className="SelectMenu-list p-1">
-              {workflows.map((wf) => (
-                <button
-                  type="button"
-                  key={wf.filePath}
-                  className="SelectMenu-item width-full text-left p-2 btn-link f6"
-                  style={{
-                    color: 'var(--color-fg-default, #c9d1d9)',
-                    display: 'block',
-                    textDecoration: 'none'
-                  }}
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    onRunWorkflow(wf.filePath);
-                  }}
-                >
-                  {wf.name}
-                </button>
-              ))}
-            </div>
+            <div className="gh-nav-title">Select a workflow to run</div>
+            {workflows.map((wf) => (
+              <button
+                type="button"
+                key={wf.filePath}
+                className="gh-nav-item"
+                onClick={() => {
+                  setDropdownOpen(false);
+                  onRunWorkflow(wf.filePath);
+                }}
+              >
+                {wf.name}
+              </button>
+            ))}
           </div>
         )}
       </div>
-    </header>
+    </div>
   );
 }

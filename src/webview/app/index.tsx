@@ -1,4 +1,5 @@
 import '@primer/css/dist/primer.css';
+import './gh.css';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 

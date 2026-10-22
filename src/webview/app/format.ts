@@ -45,3 +45,21 @@ export function formatRelativeTime(isoString: string): string {
   }
   return date.toLocaleDateString();
 }
+
+export function formatDateTime(isoString: string): string {
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) {
+    return '';
+  }
+  const day = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `${day}, ${time}`;
+}
+
+export function describeTrigger(event: string, trigger: string): string {
+  const t = trigger || event;
+  if (t === 'workflow_dispatch' || t === 'manual') {
+    return 'Manually run';
+  }
+  return `Triggered via ${t}`;
+}

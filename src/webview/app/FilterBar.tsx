@@ -4,6 +4,22 @@ import { RunStatus } from '../../runs/types';
 interface FilterBarProps {
   query: string;
   onQueryChange: (query: string) => void;
+}
+
+export function FilterBar({ query, onQueryChange }: FilterBarProps): React.ReactElement {
+  return (
+    <input
+      type="text"
+      className="gh-input gh-search"
+      placeholder="Filter runs by title, branch or commit"
+      aria-label="Filter runs"
+      value={query}
+      onChange={(e) => onQueryChange(e.target.value)}
+    />
+  );
+}
+
+export interface RunFilterSelectsProps {
   statusFilter: RunStatus | 'all';
   onStatusFilterChange: (status: RunStatus | 'all') => void;
   eventFilter: string;
@@ -11,71 +27,40 @@ interface FilterBarProps {
   availableEvents: string[];
 }
 
-export function FilterBar({
-  query,
-  onQueryChange,
+export function RunFilterSelects({
   statusFilter,
   onStatusFilterChange,
   eventFilter,
   onEventFilterChange,
   availableEvents
-}: FilterBarProps): React.ReactElement {
+}: RunFilterSelectsProps): React.ReactElement {
   return (
-    <div
-      className="p-3 border-bottom d-flex flex-wrap gap-2 flex-items-center"
-      style={{
-        borderColor: 'var(--color-border-default, #30363d)',
-        backgroundColor: 'var(--color-canvas-default, #0d1117)'
-      }}
-    >
-      <input
-        type="text"
-        className="form-control input-sm flex-1"
-        placeholder="Filter runs by title, branch or commit"
-        value={query}
-        onChange={(e) => onQueryChange(e.target.value)}
-        style={{
-          minWidth: 200,
-          backgroundColor: 'var(--color-canvas-subtle, #161b22)',
-          color: 'var(--color-fg-default, #c9d1d9)',
-          borderColor: 'var(--color-border-default, #30363d)'
-        }}
-      />
-
+    <div className="gh-filters">
       <select
-        className="form-select select-sm"
+        className="gh-select"
+        aria-label="Event"
         value={eventFilter}
         onChange={(e) => onEventFilterChange(e.target.value)}
-        style={{
-          backgroundColor: 'var(--color-canvas-subtle, #161b22)',
-          color: 'var(--color-fg-default, #c9d1d9)',
-          borderColor: 'var(--color-border-default, #30363d)'
-        }}
       >
-        <option value="all">Event: All</option>
+        <option value="all">Event</option>
         {availableEvents.map((evt) => (
           <option key={evt} value={evt}>
-            Event: {evt}
+            {evt}
           </option>
         ))}
       </select>
-
       <select
-        className="form-select select-sm"
+        className="gh-select"
+        aria-label="Status"
         value={statusFilter}
         onChange={(e) => onStatusFilterChange(e.target.value as RunStatus | 'all')}
-        style={{
-          backgroundColor: 'var(--color-canvas-subtle, #161b22)',
-          color: 'var(--color-fg-default, #c9d1d9)',
-          borderColor: 'var(--color-border-default, #30363d)'
-        }}
       >
-        <option value="all">Status: All</option>
-        <option value="success">Status: Success</option>
-        <option value="failure">Status: Failure</option>
-        <option value="in_progress">Status: In progress</option>
-        <option value="queued">Status: Queued</option>
-        <option value="cancelled">Status: Cancelled</option>
+        <option value="all">Status</option>
+        <option value="success">Success</option>
+        <option value="failure">Failure</option>
+        <option value="in_progress">In progress</option>
+        <option value="queued">Queued</option>
+        <option value="cancelled">Cancelled</option>
       </select>
     </div>
   );

@@ -264,7 +264,7 @@ export class ActionsPanel {
     const nonce = crypto.randomBytes(16).toString('base64');
 
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-color-mode="dark" data-dark-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
@@ -272,7 +272,7 @@ export class ActionsPanel {
   <link rel="stylesheet" href="${stylesUri}">
   <title>Local Actions</title>
 </head>
-<body style="padding: 0; margin: 0; background-color: var(--color-canvas-default, #0d1117); color: var(--color-fg-default, #c9d1d9);">
+<body style="padding: 0; margin: 0;">
   <div id="root"></div>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>

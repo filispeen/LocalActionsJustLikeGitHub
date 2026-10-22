@@ -1,54 +1,67 @@
 import React from 'react';
 import { WorkflowRun } from '../../runs/types';
-import { formatDuration, formatRelativeTime } from './format';
+import { describeTrigger, formatDateTime, formatDuration } from './format';
 import { StatusIcon } from './StatusIcon';
 
 interface RunListProps {
   runs: WorkflowRun[];
+  runNumbers: Record<string, number>;
   selectedRunId: string | undefined;
   onSelectRun: (run: WorkflowRun) => void;
   onCancelRun?: (runId: string) => void;
   onDeleteRun?: (runId: string) => void;
+  filters?: React.ReactNode;
 }
+
+const CalendarIcon = (): React.ReactElement => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+    <path d="M4.75 0a.75.75 0 0 1 .75.75V2h5V.75a.75.75 0 0 1 1.5 0V2h1.25c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 13.25 16H2.75A1.75 1.75 0 0 1 1 14.25V3.75C1 2.784 1.784 2 2.75 2H4V.75A.75.75 0 0 1 4.75 0ZM2.5 7.5v6.75c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25V7.5Zm10.75-4H2.75a.25.25 0 0 0-.25.25V6h11V3.75a.25.25 0 0 0-.25-.25Z" />
+  </svg>
+);
+
+const StopwatchIcon = (): React.ReactElement => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+    <path d="M5.75.75A.75.75 0 0 1 6.5 0h3a.75.75 0 0 1 0 1.5h-.75v1l-.001.041a6.718 6.718 0 0 1 3.464 1.435l.007-.006.75-.75a.749.749 0 1 1 1.06 1.06l-.75.75-.006.007a6.75 6.75 0 1 1-10.548 0L2.72 5.03l-.75-.75a.749.749 0 1 1 1.06-1.06l.75.75.007.006A6.718 6.718 0 0 1 7.25 2.541V1.5H6.5a.75.75 0 0 1-.75-.75ZM8 14.5a5.25 5.25 0 1 0-.001-10.499A5.25 5.25 0 0 0 8 14.5Zm.389-6.7 1.33-1.33a.749.749 0 1 1 1.06 1.06L9.45 8.86A1.5 1.5 0 1 1 8.39 7.8Z" />
+  </svg>
+);
 
 export function RunList({
   runs,
+  runNumbers,
   selectedRunId,
   onSelectRun,
   onCancelRun,
-  onDeleteRun
+  onDeleteRun,
+  filters
 }: RunListProps): React.ReactElement {
-  if (runs.length === 0) {
-    return (
-      <div className="p-6 text-center" style={{ color: 'var(--color-fg-muted, #8b949e)' }}>
-        <p className="f4 mb-1">No workflow runs found</p>
-        <p className="f6">Trigger a run using the button above or from the Workflows sidebar.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="Box-body p-0" style={{ overflowY: 'auto', flex: 1 }}>
-      <ul className="list-style-none m-0 p-0" role="list">
-        {runs.map((run) => {
-          const isSelected = selectedRunId === run.id;
+    <div className="gh-box">
+      <div className="gh-box-header">
+        <span className="gh-grow">
+          {runs.length} workflow run{runs.length === 1 ? '' : 's'}
+        </span>
+        {filters}
+      </div>
+
+      {runs.length === 0 ? (
+        <div className="gh-empty">
+          <h3>No workflow runs found</h3>
+          <div>Trigger a run using the button above.</div>
+        </div>
+      ) : (
+        runs.map((run) => {
           const duration = formatDuration(run.durationMs);
-          const relativeTime = formatRelativeTime(run.startedAt);
+          const num = runNumbers[run.id];
+          const label = `${run.workflowName}${num ? ` #${num}` : ''}: ${describeTrigger(run.event, run.trigger)}`;
 
           return (
-            <li
+            <div
               key={run.id}
               role="button"
               tabIndex={0}
               aria-label={`Run ${run.workflowName} status ${run.status}`}
-              className="Box-row d-flex flex-items-center flex-justify-between p-3 border-bottom"
-              style={{
-                cursor: 'pointer',
-                borderColor: 'var(--color-border-default, #30363d)',
-                backgroundColor: isSelected
-                  ? 'var(--color-action-list-item-default-selected-bg, #1f242c)'
-                  : 'transparent'
-              }}
+              className="gh-run"
+              style={selectedRunId === run.id ? { background: 'var(--gh-selected)' } : undefined}
               onClick={() => onSelectRun(run)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -57,41 +70,42 @@ export function RunList({
                 }
               }}
             >
-              <div className="d-flex flex-items-center flex-1 mr-3 min-width-0">
-                <div className="mr-3 d-flex flex-items-center">
-                  <StatusIcon status={run.status} size={18} />
+              <span className="gh-run-icon">
+                <StatusIcon status={run.status} size={16} />
+              </span>
+              <div className="gh-run-main">
+                <div className="gh-run-title" title={run.workflowName}>
+                  {run.workflowName}
                 </div>
-                <div className="min-width-0">
-                  <div className="f5 text-bold css-truncate css-truncate-target" style={{ color: 'var(--color-fg-default, #c9d1d9)' }}>
-                    {run.workflowName}
-                  </div>
-                  <div className="f6 css-truncate css-truncate-target mt-1" style={{ color: 'var(--color-fg-muted, #8b949e)' }}>
-                    <span>{run.workflowName}</span>
-                    <span className="mx-1">·</span>
-                    <span>{run.event}</span>
-                    {run.branch && (
-                      <>
-                        <span className="mx-1">·</span>
-                        <span>{run.branch}</span>
-                      </>
-                    )}
-                    <span className="mx-1">·</span>
-                    <span className="color-fg-subtle">#{run.id}</span>
-                  </div>
+                <div className="gh-run-sub" title={label}>
+                  {label}
                 </div>
               </div>
-
-              <div className="d-flex flex-items-center flex-shrink-0">
-                <div className="text-right mr-3" style={{ color: 'var(--color-fg-muted, #8b949e)', minWidth: 100 }}>
-                  {duration && <div className="f6">{duration}</div>}
-                  <div className="f6 color-fg-subtle">{relativeTime}</div>
+              <div className="gh-run-branch">
+                {run.branch && (
+                  <span className="gh-branch" title={run.branch}>
+                    {run.branch}
+                  </span>
+                )}
+              </div>
+              <div className="gh-run-meta">
+                <div>
+                  <CalendarIcon />
+                  <span>{formatDateTime(run.startedAt)}</span>
                 </div>
-
+                {duration && (
+                  <div>
+                    <StopwatchIcon />
+                    <span>{duration}</span>
+                  </div>
+                )}
+              </div>
+              <div className="gh-run-actions">
                 {run.status === 'in_progress' && onCancelRun && (
                   <button
                     type="button"
                     aria-label={`Cancel run ${run.id}`}
-                    className="btn btn-sm btn-danger mr-2"
+                    className="gh-btn gh-btn-sm gh-btn-danger"
                     onClick={(e) => {
                       e.stopPropagation();
                       onCancelRun(run.id);
@@ -100,14 +114,12 @@ export function RunList({
                     Cancel
                   </button>
                 )}
-
-                {onDeleteRun && (
+                {onDeleteRun && run.status !== 'in_progress' && (
                   <button
                     type="button"
                     aria-label={`Delete run ${run.id}`}
-                    className="btn btn-sm btn-invisible"
+                    className="gh-btn gh-btn-sm gh-btn-invisible gh-btn-icon"
                     title="Delete run"
-                    style={{ color: 'var(--color-fg-muted, #8b949e)' }}
                     onClick={(e) => {
                       e.stopPropagation();
                       onDeleteRun(run.id);
@@ -117,10 +129,10 @@ export function RunList({
                   </button>
                 )}
               </div>
-            </li>
+            </div>
           );
-        })}
-      </ul>
+        })
+      )}
     </div>
   );
 }

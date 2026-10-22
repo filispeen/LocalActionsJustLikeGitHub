@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { RunJob } from '../../runs/types';
 import { parseAnsi } from './ansi';
-import { formatDuration } from './format';
+import { formatDuration, formatRelativeTime } from './format';
 import { StatusIcon } from './StatusIcon';
 import { cleanLogLine, extractStepsFromLogs, partitionJobLogs } from './stepLogs';
 
@@ -9,6 +9,24 @@ interface StepsViewerProps {
   job: RunJob | undefined;
   rawLogs: string;
   isRunActive: boolean;
+}
+
+const MAX_STEP_LINES = 2000;
+
+function LogLine({ num, text }: { num: number; text: string }): React.ReactElement {
+  const segments = parseAnsi(text);
+  return (
+    <div className="gh-log-line">
+      <span className="gh-log-num">{num}</span>
+      <span className="gh-log-text">
+        {segments.map((seg, i) => (
+          <span key={i} style={{ color: seg.color || 'var(--gh-fg)', fontWeight: seg.bold ? 700 : 400 }}>
+            {seg.text}
+          </span>
+        ))}
+      </span>
+    </div>
+  );
 }
 
 export function StepsViewer({ job, rawLogs, isRunActive }: StepsViewerProps): React.ReactElement {
@@ -35,6 +53,13 @@ export function StepsViewer({ job, rawLogs, isRunActive }: StepsViewerProps): Re
     return extractStepsFromLogs(parsedLines);
   }, [job?.steps, parsedLines]);
 
+  const stepLogsMap = useMemo(() => {
+    if (!job || steps.length === 0) {
+      return {} as Record<string, string[]>;
+    }
+    return partitionJobLogs(parsedLines, job.name, steps);
+  }, [parsedLines, job, steps]);
+
   useEffect(() => {
     if (steps.length > 0) {
       setExpandedSteps((prev) => {
@@ -55,268 +80,128 @@ export function StepsViewer({ job, rawLogs, isRunActive }: StepsViewerProps): Re
     }
   }, [autoScroll, isRunActive, rawLogs]);
 
-  const toggleStep = (stepId: string) => {
-    setExpandedSteps((prev) => ({
-      ...prev,
-      [stepId]: !prev[stepId]
-    }));
-  };
+  if (!job) {
+    return <div className="gh-empty">Select a job to inspect steps and logs.</div>;
+  }
 
+  const matches = (line: string) => !searchQuery || line.toLowerCase().includes(searchQuery.toLowerCase());
+  const toggleStep = (id: string) => setExpandedSteps((prev) => ({ ...prev, [id]: !prev[id] }));
   const handleCopy = () => {
     navigator.clipboard.writeText(rawLogs);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!job) {
-    return (
-      <div className="p-6 text-center" style={{ color: 'var(--color-fg-muted, #8b949e)' }}>
-        Select a job from above to inspect steps and logs.
-      </div>
-    );
-  }
-
-  const stepLogsMap = useMemo(() => {
-    if (steps.length === 0) {
-      return {};
-    }
-    return partitionJobLogs(parsedLines, job.name, steps);
-  }, [parsedLines, job.name, steps]);
+  const jobDuration = formatDuration(job.durationMs);
+  const jobWord = job.status === 'success' ? 'succeeded' : job.status === 'failure' ? 'failed' : job.status === 'in_progress' ? 'in progress' : job.status;
 
   return (
-    <div className="d-flex flex-column flex-1 min-width-0" style={{ overflow: 'hidden' }}>
-      <div
-        className="p-2 border-bottom d-flex flex-wrap flex-items-center flex-justify-between gap-2"
-        style={{
-          backgroundColor: 'var(--color-canvas-default, #0d1117)',
-          borderColor: 'var(--color-border-default, #30363d)'
-        }}
-      >
-        <div className="d-flex flex-items-center gap-2">
-          <input
-            type="text"
-            className="form-control input-sm"
-            placeholder="Search logs"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: 180,
-              backgroundColor: 'var(--color-canvas-subtle, #161b22)',
-              color: 'var(--color-fg-default, #c9d1d9)',
-              borderColor: 'var(--color-border-default, #30363d)'
-            }}
-          />
-          <label
-            className="f6 d-flex flex-items-center gap-1"
-            style={{ color: 'var(--color-fg-muted, #8b949e)', cursor: 'pointer' }}
-          >
-            <input
-              type="checkbox"
-              checked={showTimestamps}
-              onChange={(e) => setShowTimestamps(e.target.checked)}
-            />
-            Timestamps
-          </label>
-          <label
-            className="f6 d-flex flex-items-center gap-1"
-            style={{ color: 'var(--color-fg-muted, #8b949e)', cursor: 'pointer' }}
-          >
-            <input
-              type="checkbox"
-              checked={autoScroll}
-              onChange={(e) => setAutoScroll(e.target.checked)}
-            />
-            Auto-scroll
-          </label>
+    <div className="gh-box">
+      <div className="gh-job-head">
+        <div>
+          <h2>{job.name}</h2>
+          <div className="gh-job-sub">
+            {jobWord}
+            {job.startedAt ? ` ${formatRelativeTime(job.startedAt)}` : ''}
+            {jobDuration ? ` in ${jobDuration}` : ''}
+          </div>
         </div>
 
-        <div className="d-flex flex-items-center gap-2">
+        <div className="gh-job-tools">
+          <input
+            type="text"
+            className="gh-input gh-input-sm"
+            placeholder="Search logs"
+            aria-label="Search logs"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ width: 200 }}
+          />
+          <label className="gh-check">
+            <input type="checkbox" checked={showTimestamps} onChange={(e) => setShowTimestamps(e.target.checked)} />
+            Timestamps
+          </label>
+          <label className="gh-check">
+            <input type="checkbox" checked={autoScroll} onChange={(e) => setAutoScroll(e.target.checked)} />
+            Auto-scroll
+          </label>
           {steps.length > 0 && (
             <button
               type="button"
-              className="btn btn-sm"
+              className="gh-btn gh-btn-sm"
               onClick={() => setViewMode((m) => (m === 'steps' ? 'raw' : 'steps'))}
-              style={{
-                backgroundColor: 'var(--color-btn-bg, #21262d)',
-                color: 'var(--color-fg-default, #c9d1d9)',
-                borderColor: 'var(--color-btn-border, #30363d)'
-              }}
             >
               {viewMode === 'steps' ? 'View raw logs' : 'View steps'}
             </button>
           )}
-
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={handleCopy}
-            style={{
-              backgroundColor: 'var(--color-btn-bg, #21262d)',
-              color: 'var(--color-fg-default, #c9d1d9)',
-              borderColor: 'var(--color-btn-border, #30363d)'
-            }}
-          >
+          <button type="button" className="gh-btn gh-btn-sm" onClick={handleCopy}>
             {copied ? 'Copied!' : 'Copy log'}
           </button>
         </div>
       </div>
 
-      <div className="flex-1 p-3" style={{ overflowY: 'auto' }}>
-        {viewMode === 'raw' || steps.length === 0 ? (
-          <div
-            className="p-3 font-mono f6 border rounded-2"
-            style={{
-              backgroundColor: 'var(--color-canvas-subtle, #161b22)',
-              borderColor: 'var(--color-border-default, #30363d)',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-all'
-            }}
-          >
-            {parsedLines.map((line, idx) => {
-              if (searchQuery && !line.toLowerCase().includes(searchQuery.toLowerCase())) {
-                return null;
-              }
-              const segments = parseAnsi(line);
-              return (
-                <div key={idx} style={{ lineHeight: '1.6' }}>
-                  {segments.map((seg, sIdx) => (
-                    <span
-                      key={sIdx}
-                      style={{
-                        color: seg.color || 'var(--color-fg-default, #c9d1d9)',
-                        fontWeight: seg.bold ? 700 : 400
-                      }}
-                    >
-                      {seg.text}
-                    </span>
-                  ))}
-                </div>
-              );
-            })}
-            <div ref={logsEndRef} />
-          </div>
-        ) : (
-          <div className="d-flex flex-column gap-2">
-            {steps.map((step) => {
-              const isExpanded = Boolean(expandedSteps[step.id]);
-              const duration = formatDuration(step.durationMs);
+      {viewMode === 'raw' || steps.length === 0 ? (
+        <div className="gh-raw">
+          {parsedLines.map((line, idx) => (matches(line) ? <LogLine key={idx} num={idx + 1} text={line} /> : null))}
+          <div ref={logsEndRef} />
+        </div>
+      ) : (
+        <div className="gh-steps">
+          {steps.map((step) => {
+            const isOpen = Boolean(expandedSteps[step.id]);
+            const duration = formatDuration(step.durationMs);
+            const all = (stepLogsMap[step.id] || []).filter(matches);
+            const capped = all.length > MAX_STEP_LINES;
+            const lines = capped ? all.slice(-MAX_STEP_LINES) : all;
+            const offset = all.length - lines.length;
 
-              const allStepLines = stepLogsMap[step.id] || [];
-              const filteredStepLines = allStepLines.filter((line) => {
-                if (searchQuery && !line.toLowerCase().includes(searchQuery.toLowerCase())) {
-                  return false;
-                }
-                return true;
-              });
-
-              const MAX_STEP_LINES = 2000;
-              const isCapped = filteredStepLines.length > MAX_STEP_LINES;
-              const stepLines = isCapped ? filteredStepLines.slice(-MAX_STEP_LINES) : filteredStepLines;
-
-              return (
+            return (
+              <div key={step.id} className={`gh-step ${isOpen ? 'is-open' : ''}`}>
                 <div
-                  key={step.id}
-                  className="border rounded-2"
-                  style={{
-                    backgroundColor: 'var(--color-canvas-default, #0d1117)',
-                    borderColor: 'var(--color-border-default, #30363d)',
-                    overflow: 'hidden'
+                  className="gh-step-head"
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isOpen}
+                  onClick={() => toggleStep(step.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleStep(step.id);
+                    }
                   }}
                 >
-                  <div
-                    className="p-2 d-flex flex-items-center flex-justify-between"
-                    style={{
-                      cursor: 'pointer',
-                      backgroundColor: 'var(--color-canvas-subtle, #161b22)',
-                      userSelect: 'none'
-                    }}
-                    onClick={() => toggleStep(step.id)}
-                  >
-                    <div className="d-flex flex-items-center gap-2">
-                      <span
-                        style={{
-                          transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                          transition: 'transform 0.15s ease',
-                          display: 'inline-block',
-                          fontSize: 10,
-                          color: 'var(--color-fg-muted, #8b949e)'
-                        }}
-                      >
-                        ▶
-                      </span>
-                      <StatusIcon status={step.status} size={14} />
-                      <span className="f6 text-bold" style={{ color: 'var(--color-fg-default, #c9d1d9)' }}>
-                        {step.name}
-                      </span>
-                    </div>
+                  <svg className="gh-step-chevron" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" />
+                  </svg>
+                  <StatusIcon status={step.status} size={16} muted={step.status === 'success'} />
+                  <span className="gh-step-name">{step.name}</span>
+                  {duration && <span className="gh-step-time">{duration}</span>}
+                </div>
 
-                    {duration && (
-                      <span className="f6" style={{ color: 'var(--color-fg-muted, #8b949e)' }}>
-                        {duration}
-                      </span>
+                {isOpen && (
+                  <div className="gh-log">
+                    {all.length === 0 ? (
+                      <div className="gh-log-note">No output produced for this step yet.</div>
+                    ) : (
+                      <>
+                        {capped && (
+                          <div className="gh-log-note">
+                            Showing latest {MAX_STEP_LINES.toLocaleString()} of {all.length.toLocaleString()} lines
+                          </div>
+                        )}
+                        {lines.map((line, idx) => (
+                          <LogLine key={idx} num={offset + idx + 1} text={cleanLogLine(line, job.name)} />
+                        ))}
+                      </>
                     )}
                   </div>
-
-                  {isExpanded && (
-                    <div
-                      className="p-3 font-mono f6 border-top"
-                      style={{
-                        backgroundColor: '#05070a',
-                        borderColor: 'var(--color-border-default, #30363d)',
-                        maxHeight: 400,
-                        overflowY: 'auto',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-all'
-                      }}
-                    >
-                      {filteredStepLines.length === 0 ? (
-                        <span style={{ color: 'var(--color-fg-muted, #8b949e)' }}>
-                          No output produced for this step yet.
-                        </span>
-                      ) : (
-                        <>
-                          {isCapped && (
-                            <div
-                              className="text-center f6 p-1 mb-2 border rounded-1"
-                              style={{
-                                color: 'var(--color-fg-muted, #8b949e)',
-                                backgroundColor: 'var(--color-canvas-subtle, #161b22)',
-                                borderColor: 'var(--color-border-default, #30363d)'
-                              }}
-                            >
-                              Showing latest {MAX_STEP_LINES.toLocaleString()} of {filteredStepLines.length.toLocaleString()} lines
-                            </div>
-                          )}
-                          {stepLines.map((line, idx) => {
-                            const displayLine = cleanLogLine(line, job.name);
-                            const segments = parseAnsi(displayLine);
-                            return (
-                              <div key={idx} style={{ lineHeight: '1.6' }}>
-                                {segments.map((seg, sIdx) => (
-                                  <span
-                                    key={sIdx}
-                                    style={{
-                                      color: seg.color || 'var(--color-fg-default, #c9d1d9)',
-                                      fontWeight: seg.bold ? 700 : 400
-                                    }}
-                                  >
-                                    {seg.text}
-                                  </span>
-                                ))}
-                              </div>
-                            );
-                          })}
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            <div ref={logsEndRef} />
-          </div>
-        )}
-      </div>
+                )}
+              </div>
+            );
+          })}
+          <div ref={logsEndRef} />
+        </div>
+      )}
     </div>
   );
 }
