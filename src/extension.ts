@@ -3,8 +3,14 @@ import { ActionsPanel } from './webview/host/ActionsPanel';
 import { ComponentsViewProvider } from './views/ComponentsView';
 import { WorkflowDiscovery } from './workflows/discovery';
 import { WorkflowFileTreeItem, WorkflowJobTreeItem, WorkflowsViewProvider } from './views/WorkflowsView';
+import { RunStore } from './runs/store';
+import { ActRunner } from './act/runner';
+import { WorkflowRun } from './runs/types';
 
 export function activate(context: vscode.ExtensionContext): void {
+  const store = new RunStore(context.globalStorageUri.fsPath);
+  store.init();
+
   const componentsProvider = new ComponentsViewProvider();
   vscode.window.registerTreeDataProvider('localActions.componentsView', componentsProvider);
 
@@ -36,15 +42,104 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
 
     vscode.commands.registerCommand('localActions.runWorkflow', async (item?: WorkflowFileTreeItem) => {
-      if (item?.workflow) {
-        vscode.window.showInformationMessage(`Run initiated for workflow: ${item.workflow.name}`);
+      if (!item?.workflow) {
+        return;
       }
+
+      const config = vscode.workspace.getConfiguration('localActions');
+      const actPath = config.get<string>('actPath') || 'act';
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd();
+
+      const run: WorkflowRun = {
+        id: `run-${Date.now()}`,
+        workflowFilePath: item.workflow.filePath,
+        workflowName: item.workflow.name,
+        event: item.workflow.events[0] || 'push',
+        status: 'queued',
+        startedAt: new Date().toISOString(),
+        trigger: 'manual',
+        jobs: item.workflow.jobs.map((j) => ({
+          id: j.id,
+          name: j.name,
+          status: 'queued',
+          needs: j.needs,
+          steps: []
+        }))
+      };
+
+      vscode.window.showInformationMessage(`Running workflow: ${item.workflow.name}`);
+      const runner = new ActRunner(
+        actPath,
+        workspaceFolder,
+        run,
+        {
+          workflowPath: item.workflow.filePath,
+          useHostRunner: true,
+          jsonOutput: true
+        },
+        [],
+        store
+      );
+
+      runner.start().then((result) => {
+        if (result.status === 'success') {
+          vscode.window.showInformationMessage(`Workflow succeeded: ${result.workflowName}`);
+        } else if (result.status === 'failure') {
+          vscode.window.showErrorMessage(`Workflow failed: ${result.workflowName}`);
+        }
+      });
     }),
 
     vscode.commands.registerCommand('localActions.runJob', async (item?: WorkflowJobTreeItem) => {
-      if (item?.job) {
-        vscode.window.showInformationMessage(`Run initiated for job: ${item.job.name}`);
+      if (!item?.workflow || !item?.job) {
+        return;
       }
+
+      const config = vscode.workspace.getConfiguration('localActions');
+      const actPath = config.get<string>('actPath') || 'act';
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd();
+
+      const run: WorkflowRun = {
+        id: `run-${Date.now()}`,
+        workflowFilePath: item.workflow.filePath,
+        workflowName: item.workflow.name,
+        event: item.workflow.events[0] || 'push',
+        status: 'queued',
+        startedAt: new Date().toISOString(),
+        trigger: 'manual',
+        jobs: [
+          {
+            id: item.job.id,
+            name: item.job.name,
+            status: 'queued',
+            needs: item.job.needs,
+            steps: []
+          }
+        ]
+      };
+
+      vscode.window.showInformationMessage(`Running job: ${item.job.name}`);
+      const runner = new ActRunner(
+        actPath,
+        workspaceFolder,
+        run,
+        {
+          workflowPath: item.workflow.filePath,
+          jobId: item.job.id,
+          useHostRunner: true,
+          jsonOutput: true
+        },
+        [],
+        store
+      );
+
+      runner.start().then((result) => {
+        if (result.status === 'success') {
+          vscode.window.showInformationMessage(`Job succeeded: ${item.job.name}`);
+        } else if (result.status === 'failure') {
+          vscode.window.showErrorMessage(`Job failed: ${item.job.name}`);
+        }
+      });
     }),
 
     vscode.commands.registerCommand('localActions.openActInstallGuide', async () => {

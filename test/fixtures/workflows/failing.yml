@@ -1,0 +1,13 @@
+name: Test Failing
+on: push
+jobs:
+  failing_job:
+    name: Failing Job
+    runs-on: ubuntu-latest
+    steps:
+      - name: Passing Step
+        run: echo "Pass"
+      - name: Failing Step
+        run: exit 1
+      - name: Never Reached Step
+        run: echo "Unreached"

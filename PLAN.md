@@ -61,15 +61,15 @@ Done when: tree matches the files on disk and updates live.
 
 ## Phase 3: Runner and store
 
-- [ ] Build act argv from workflow, job, event, payload, secrets, variables, inputs, platform mapping and extra options (verify each flag against act --help)
-- [ ] Spawn with cwd = workspace folder, stream output
-- [ ] Parse output into run, jobs, steps with status, timings and log lines
-- [ ] Cancel with process tree kill
-- [ ] RunStore persistence, retention, secret redaction
-- [ ] Event emitter so views and webview get live updates
-- [ ] Unit tests for the parser using captured real output fixtures
+- [x] Build act argv from workflow, job, event, payload, secrets, variables, inputs, platform mapping and extra options (verify each flag against act --help)
+- [x] Spawn with cwd = workspace folder, stream output
+- [x] Parse output into run, jobs, steps with status, timings and log lines
+- [x] Cancel with process tree kill
+- [x] RunStore persistence, retention, secret redaction
+- [x] Event emitter so views and webview get live updates
+- [x] Unit tests for the parser using captured real output fixtures
 
-Phase 3 notes: (agent records act version tested, output format findings)
+Phase 3 notes: Tested against act v0.2.89. The --json flag outputs newline-delimited JSON with jobID, job (<workflow>/<job>), step name, stepID, raw_output for stdout lines, executionTime in nanoseconds, stepResult and jobResult ('success'/'failure'), and ISO timestamps. Plain text logs prefix lines with [<workflow>/<job>] and emoji/status markers (e.g. ⭐ Run, |, ✅ Success, ❌ Failure, 🏁 Job succeeded/failed). On Windows, process tree cancellation requires taskkill /pid <pid> /T /F to avoid orphan runner processes.
 
 Done when: a real workflow run produces a stored run with correct job and step statuses.
 

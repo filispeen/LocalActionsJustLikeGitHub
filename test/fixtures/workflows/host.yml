@@ -1,0 +1,11 @@
+name: Test Host
+on: push
+jobs:
+  build:
+    name: Build Job
+    runs-on: ubuntu-latest
+    steps:
+      - name: Step One
+        run: echo "Hello world"
+      - name: Step Two
+        run: echo "Second step"

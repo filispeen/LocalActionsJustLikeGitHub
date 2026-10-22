@@ -1,0 +1,11 @@
+name: Test Workflow
+on: push
+jobs:
+  job1:
+    name: First Job
+    runs-on: -self-hosted
+    steps:
+      - name: Print Hello
+        run: echo "Hello from step 1"
+      - name: Print World
+        run: echo "World from step 2"
