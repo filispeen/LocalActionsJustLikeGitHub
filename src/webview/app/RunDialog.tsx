@@ -90,68 +90,20 @@ export function RunDialog({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.65)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000
-      }}
-      onClick={onClose}
-    >
-      <div
-        className="Box d-flex flex-column"
-        style={{
-          width: 520,
-          maxWidth: '90vw',
-          maxHeight: '90vh',
-          backgroundColor: 'var(--color-canvas-overlay, #161b22)',
-          borderColor: 'var(--color-border-default, #30363d)',
-          borderRadius: 8,
-          boxShadow: '0 16px 32px rgba(0,0,0,0.85)'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className="Box-header d-flex flex-justify-between flex-items-center p-3 border-bottom"
-          style={{ borderColor: 'var(--color-border-default, #30363d)' }}
-        >
-          <h3 className="Box-title f4 text-bold m-0" style={{ color: 'var(--color-fg-default, #c9d1d9)' }}>
-            Run workflow
-          </h3>
-          <button
-            type="button"
-            className="btn-octicon"
-            onClick={onClose}
-            aria-label="Close dialog"
-            style={{ color: 'var(--color-fg-muted, #8b949e)', cursor: 'pointer', fontSize: 16 }}
-          >
+    <div className="gh-overlay" onClick={onClose}>
+      <div className="gh-dialog" role="dialog" aria-label="Run workflow" onClick={(e) => e.stopPropagation()}>
+        <div className="gh-dialog-head">
+          <h3>Run workflow</h3>
+          <button type="button" className="gh-btn gh-btn-sm gh-btn-invisible gh-btn-icon" onClick={onClose} aria-label="Close dialog">
             ✕
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-          <div className="Box-body p-3" style={{ overflowY: 'auto', flex: 1 }}>
-            <div className="form-group mb-3">
-              <label className="f6 text-bold d-block mb-1" style={{ color: 'var(--color-fg-default, #c9d1d9)' }}>
-                Workflow
-              </label>
-              <select
-                className="form-select width-full"
-                value={selectedWorkflowPath}
-                onChange={(e) => setSelectedWorkflowPath(e.target.value)}
-                style={{
-                  backgroundColor: 'var(--color-canvas-default, #0d1117)',
-                  color: 'var(--color-fg-default, #c9d1d9)',
-                  borderColor: 'var(--color-border-default, #30363d)'
-                }}
-              >
+        <form onSubmit={handleSubmit} className="gh-dialog-form">
+          <div className="gh-dialog-body">
+            <div className="gh-field">
+              <label className="gh-label">Workflow</label>
+              <select className="gh-input" value={selectedWorkflowPath} onChange={(e) => setSelectedWorkflowPath(e.target.value)}>
                 {workflows.map((wf) => (
                   <option key={wf.filePath} value={wf.filePath}>
                     {wf.name} ({wf.fileName})
@@ -161,20 +113,9 @@ export function RunDialog({
             </div>
 
             {selectedWorkflow && selectedWorkflow.jobs.length > 0 && (
-              <div className="form-group mb-3">
-                <label className="f6 text-bold d-block mb-1" style={{ color: 'var(--color-fg-default, #c9d1d9)' }}>
-                  Job (optional)
-                </label>
-                <select
-                  className="form-select width-full"
-                  value={selectedJobId}
-                  onChange={(e) => setSelectedJobId(e.target.value)}
-                  style={{
-                    backgroundColor: 'var(--color-canvas-default, #0d1117)',
-                    color: 'var(--color-fg-default, #c9d1d9)',
-                    borderColor: 'var(--color-border-default, #30363d)'
-                  }}
-                >
+              <div className="gh-field">
+                <label className="gh-label">Job (optional)</label>
+                <select className="gh-input" value={selectedJobId} onChange={(e) => setSelectedJobId(e.target.value)}>
                   <option value="">All jobs in workflow</option>
                   {selectedWorkflow.jobs.map((job) => (
                     <option key={job.id} value={job.id}>
@@ -185,52 +126,27 @@ export function RunDialog({
               </div>
             )}
 
-            <div className="form-group mb-3">
-              <label className="f6 text-bold d-block mb-1" style={{ color: 'var(--color-fg-default, #c9d1d9)' }}>
-                Event
-              </label>
-              <input
-                type="text"
-                className="form-control width-full"
-                value={selectedEvent}
-                onChange={(e) => setSelectedEvent(e.target.value)}
-                style={{
-                  backgroundColor: 'var(--color-canvas-default, #0d1117)',
-                  color: 'var(--color-fg-default, #c9d1d9)',
-                  borderColor: 'var(--color-border-default, #30363d)'
-                }}
-              />
+            <div className="gh-field">
+              <label className="gh-label">Event</label>
+              <input type="text" className="gh-input" value={selectedEvent} onChange={(e) => setSelectedEvent(e.target.value)} />
             </div>
 
             {selectedWorkflow && selectedWorkflow.inputs.length > 0 && (
-              <div className="mb-3 p-3 border rounded-2" style={{ borderColor: 'var(--color-border-default, #30363d)' }}>
-                <h4 className="f6 text-bold mb-2" style={{ color: 'var(--color-fg-default, #c9d1d9)' }}>
-                  Workflow Inputs
-                </h4>
+              <div className="gh-group">
+                <div className="gh-label">Workflow Inputs</div>
                 {selectedWorkflow.inputs.map((input) => {
                   const val = inputValues[input.name] ?? '';
 
                   return (
-                    <div key={input.name} className="form-group mb-2">
-                      <label className="f6 d-block mb-1" style={{ color: 'var(--color-fg-default, #c9d1d9)' }}>
-                        <span className="text-bold">{input.name}</span>
-                        {input.required && <span className="color-fg-danger ml-1">*</span>}
+                    <div key={input.name} className="gh-field">
+                      <label className="gh-label">
+                        {input.name}
+                        {input.required && <span style={{ color: 'var(--gh-danger)', marginLeft: 4 }}>*</span>}
                       </label>
-                      {input.description && (
-                        <div className="f6 color-fg-subtle mb-1">{input.description}</div>
-                      )}
+                      {input.description && <div className="gh-hint">{input.description}</div>}
 
                       {input.type === 'choice' && input.options ? (
-                        <select
-                          className="form-select width-full"
-                          value={val}
-                          onChange={(e) => handleInputChange(input.name, e.target.value)}
-                          style={{
-                            backgroundColor: 'var(--color-canvas-default, #0d1117)',
-                            color: 'var(--color-fg-default, #c9d1d9)',
-                            borderColor: 'var(--color-border-default, #30363d)'
-                          }}
-                        >
+                        <select className="gh-input" value={val} onChange={(e) => handleInputChange(input.name, e.target.value)}>
                           {input.options.map((opt) => (
                             <option key={opt} value={opt}>
                               {opt}
@@ -238,7 +154,7 @@ export function RunDialog({
                           ))}
                         </select>
                       ) : input.type === 'boolean' ? (
-                        <label className="d-flex flex-items-center gap-2 f6" style={{ cursor: 'pointer' }}>
+                        <label className="gh-check" style={{ fontSize: 14, color: 'var(--gh-fg)' }}>
                           <input
                             type="checkbox"
                             checked={val === 'true'}
@@ -247,17 +163,7 @@ export function RunDialog({
                           Enable {input.name}
                         </label>
                       ) : (
-                        <input
-                          type="text"
-                          className="form-control width-full"
-                          value={val}
-                          onChange={(e) => handleInputChange(input.name, e.target.value)}
-                          style={{
-                            backgroundColor: 'var(--color-canvas-default, #0d1117)',
-                            color: 'var(--color-fg-default, #c9d1d9)',
-                            borderColor: 'var(--color-border-default, #30363d)'
-                          }}
-                        />
+                        <input type="text" className="gh-input" value={val} onChange={(e) => handleInputChange(input.name, e.target.value)} />
                       )}
                     </div>
                   );
@@ -265,88 +171,55 @@ export function RunDialog({
               </div>
             )}
 
-            <div className="mb-2">
-              <button
-                type="button"
-                className="btn-link f6 d-flex flex-items-center gap-1"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                style={{ color: 'var(--color-accent-fg, #58a6ff)', textDecoration: 'none' }}
-              >
-                <span>{showAdvanced ? '▾ Hide advanced options' : '▸ Show advanced options'}</span>
+            <div className="gh-field">
+              <button type="button" className="gh-link" onClick={() => setShowAdvanced(!showAdvanced)}>
+                {showAdvanced ? '▾ Hide advanced options' : '▸ Show advanced options'}
               </button>
             </div>
 
             {showAdvanced && (
-              <div className="p-3 border rounded-2 mt-2" style={{ borderColor: 'var(--color-border-default, #30363d)' }}>
-                <div className="form-group mb-3">
-                  <label className="d-flex flex-items-center gap-2 f6" style={{ cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={useHostRunner}
-                      onChange={(e) => setUseHostRunner(e.target.checked)}
-                    />
+              <div className="gh-group">
+                <div className="gh-field">
+                  <label className="gh-check" style={{ fontSize: 14, color: 'var(--gh-fg)' }}>
+                    <input type="checkbox" checked={useHostRunner} onChange={(e) => setUseHostRunner(e.target.checked)} />
                     Run on host system (no Docker required)
                   </label>
                 </div>
 
                 {!useHostRunner && (
-                  <div className="form-group mb-3">
-                    <label className="f6 text-bold d-block mb-1" style={{ color: 'var(--color-fg-default, #c9d1d9)' }}>
-                      Container image override (optional)
-                    </label>
+                  <div className="gh-field">
+                    <label className="gh-label">Container image override (optional)</label>
                     <input
                       type="text"
-                      className="form-control width-full"
+                      className="gh-input"
                       placeholder="e.g. catthehacker/ubuntu:act-latest"
                       value={platformOverride}
                       onChange={(e) => setPlatformOverride(e.target.value)}
-                      style={{
-                        backgroundColor: 'var(--color-canvas-default, #0d1117)',
-                        color: 'var(--color-fg-default, #c9d1d9)',
-                        borderColor: 'var(--color-border-default, #30363d)'
-                      }}
                     />
                   </div>
                 )}
 
-                <div className="form-group">
-                  <label className="f6 text-bold d-block mb-1" style={{ color: 'var(--color-fg-default, #c9d1d9)' }}>
-                    Event payload JSON
-                  </label>
+                <div className="gh-field">
+                  <label className="gh-label">Event payload JSON</label>
                   <textarea
-                    className="form-control width-full font-mono f6"
+                    className="gh-input gh-textarea"
                     rows={4}
                     placeholder='{"action": "opened"}'
                     value={payloadJson}
                     onChange={(e) => handleJsonChange(e.target.value)}
-                    style={{
-                      backgroundColor: 'var(--color-canvas-default, #0d1117)',
-                      color: 'var(--color-fg-default, #c9d1d9)',
-                      borderColor: jsonError ? 'var(--color-danger-fg, #f85149)' : 'var(--color-border-default, #30363d)'
-                    }}
+                    style={jsonError ? { borderColor: 'var(--gh-danger)' } : undefined}
                   />
-                  {jsonError && (
-                    <div className="f6 color-fg-danger mt-1">
-                      {jsonError}
-                    </div>
-                  )}
+                  {jsonError && <div className="gh-hint" style={{ color: 'var(--gh-danger)' }}>{jsonError}</div>}
                 </div>
               </div>
             )}
           </div>
 
-          <div
-            className="Box-footer p-3 border-top d-flex flex-justify-end gap-2"
-            style={{ borderColor: 'var(--color-border-default, #30363d)' }}
-          >
-            <button type="button" className="btn btn-sm" onClick={onClose}>
+          <div className="gh-dialog-foot">
+            <button type="button" className="gh-btn" onClick={onClose}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="btn btn-sm btn-primary"
-              disabled={Boolean(jsonError)}
-            >
+            <button type="submit" className="gh-btn gh-btn-primary" disabled={Boolean(jsonError)}>
               Run workflow
             </button>
           </div>

@@ -10,6 +10,7 @@ const hostContext = await esbuild.context({
   format: 'cjs',
   platform: 'node',
   sourcemap: true,
+  minify: !isWatch,
   target: 'node18'
 });
 
@@ -19,7 +20,8 @@ const webviewContext = await esbuild.context({
   outfile: 'dist/webview/index.js',
   format: 'iife',
   platform: 'browser',
-  sourcemap: true,
+  sourcemap: isWatch,
+  minify: !isWatch,
   target: 'chrome120',
   define: {
     'process.env.NODE_ENV': isWatch ? '"development"' : '"production"'
