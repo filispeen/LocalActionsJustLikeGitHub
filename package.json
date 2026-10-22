@@ -2,7 +2,7 @@
   "name": "local-actions-just-like-github",
   "displayName": "Local Actions, Just Like GitHub",
   "description": "Run GitHub Actions workflows locally with a familiar GitHub Actions-style UI",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "filispeen",
   "license": "Apache-2.0",
   "engines": {
@@ -27,10 +27,6 @@
     "views": {
       "local-actions": [
         {
-          "id": "localActions.dashboardView",
-          "name": "Dashboard"
-        },
-        {
           "id": "localActions.componentsView",
           "name": "Components"
         },
@@ -41,6 +37,10 @@
         {
           "id": "localActions.settingsView",
           "name": "Settings"
+        },
+        {
+          "id": "localActions.dashboardView",
+          "name": "Dashboard"
         }
       ]
     },

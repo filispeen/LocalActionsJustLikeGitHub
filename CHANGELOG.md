@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## v0.2.2
+
+- Add dedicated Dashboard view with primary welcome button to open the Actions Dashboard.
+- Register `localActions.openActionsDashboard` command with dashboard icon.
+
 ## v0.2.1
 
 - Style RunDialog with native GitHub Actions modal and form classes (`gh-dialog`, `gh-field`, `gh-textarea`).
