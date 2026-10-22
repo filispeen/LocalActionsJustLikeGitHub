@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## v0.2.0
+
+- Redesign Actions page with authentic GitHub Actions styles and layout.
+- Add dedicated GitHub Actions stylesheet (`gh.css`) with dark theme variables and canvas styling.
+- Number and format log lines with line-level hover highlighting and search filtering in StepsViewer.
+- Add per-workflow incremental run numbering (`#1`, `#2`, etc.).
+- Introduce run metadata grid showing trigger origin, branch badges, commit SHA, duration, and run timestamps.
+- Redesign JobGraph with dotted canvas background and interactive job node pills.
+- Refine Octicon-style SVG status icons for queued, in_progress, success, failure, skipped, and cancelled states.
+
 ## v0.1.16
 
 - Parse declared steps from workflow YAML and initialize job steps in exact declaration sequence.
