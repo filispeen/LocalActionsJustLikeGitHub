@@ -15,13 +15,65 @@
   "main": "./dist/extension.js",
   "activationEvents": [],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "local-actions",
+          "title": "Local Actions",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "local-actions": [
+        {
+          "id": "localActions.componentsView",
+          "name": "Components"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "localActions.openActionsPage",
         "title": "Open Actions Page",
         "category": "Local Actions"
+      },
+      {
+        "command": "localActions.refreshComponents",
+        "title": "Refresh Components",
+        "category": "Local Actions",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "localActions.openActInstallGuide",
+        "title": "Install Guidance for act",
+        "category": "Local Actions"
+      },
+      {
+        "command": "localActions.openDockerGuide",
+        "title": "Docker Guidance",
+        "category": "Local Actions"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "localActions.refreshComponents",
+          "when": "view == localActions.componentsView",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Local Actions",
+      "properties": {
+        "localActions.actPath": {
+          "type": "string",
+          "default": "act",
+          "description": "Path to the act executable"
+        }
+      }
+    }
   },
   "scripts": {
     "compile": "node esbuild.config.mjs",

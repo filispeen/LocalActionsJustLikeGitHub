@@ -42,10 +42,10 @@ Done when: F5 opens the Extension Development Host and the command opens an empt
 
 ## Phase 1: Components
 
-- [ ] Detect act (PATH and setting localActions.actPath) and read its version
-- [ ] Detect Docker (daemon reachable)
-- [ ] Components view showing act and Docker status with install guidance and a refresh action
-- [ ] Never install anything without explicit user confirmation
+- [x] Detect act (PATH and setting localActions.actPath) and read its version
+- [x] Detect Docker (daemon reachable)
+- [x] Components view showing act and Docker status with install guidance and a refresh action
+- [x] Never install anything without explicit user confirmation
 
 Done when: the view correctly reports installed, missing and not running states.
 
