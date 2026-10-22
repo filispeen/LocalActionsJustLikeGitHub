@@ -127,9 +127,10 @@ export function RunDialog({
           </h3>
           <button
             type="button"
-            className="btn-link"
+            className="btn-octicon"
             onClick={onClose}
-            style={{ color: 'var(--color-fg-muted, #8b949e)', fontSize: 16 }}
+            aria-label="Close dialog"
+            style={{ color: 'var(--color-fg-muted, #8b949e)', cursor: 'pointer', fontSize: 16 }}
           >
             ✕
           </button>

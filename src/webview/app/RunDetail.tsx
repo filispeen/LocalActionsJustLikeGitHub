@@ -4,34 +4,26 @@ import { formatDuration, formatRelativeTime } from './format';
 import { JobGraph } from './JobGraph';
 import { StatusIcon } from './StatusIcon';
 import { StepsViewer } from './StepsViewer';
-import { getVsCodeApi, subscribeToHostMessages } from './vscode';
+import { getVsCodeApi } from './vscode';
 
 interface RunDetailProps {
   run: WorkflowRun;
+  logs: string;
   onBack: () => void;
-  onRunWorkflow: (filePath: string, jobId?: string) => void;
+  onRunWorkflow?: (filePath: string, jobId?: string) => void;
 }
 
-export function RunDetail({ run, onBack }: RunDetailProps): React.ReactElement {
+export function RunDetail({ run, logs, onBack }: RunDetailProps): React.ReactElement {
   const vscode = getVsCodeApi();
   const [selectedJobId, setSelectedJobId] = useState<string | undefined>(
     run.jobs[0]?.id
   );
-  const [logs, setLogs] = useState<string>('');
 
   useEffect(() => {
-    vscode.postMessage({ type: 'requestLog', runId: run.id });
-
-    const unsubscribe = subscribeToHostMessages((msg) => {
-      if (msg.type === 'logChunk' && msg.runId === run.id) {
-        setLogs(msg.log);
-      } else if (msg.type === 'logAppended' && msg.runId === run.id) {
-        setLogs((prev) => prev + (prev.endsWith('\n') || !prev ? '' : '\n') + msg.line);
-      }
-    });
-
-    return unsubscribe;
-  }, [run.id, vscode]);
+    if (!logs) {
+      vscode.postMessage({ type: 'requestLog', runId: run.id });
+    }
+  }, [run.id, logs, vscode]);
 
   const selectedJob = run.jobs.find((j) => j.id === selectedJobId) || run.jobs[0];
   const hasFailedJobs = run.jobs.some((j) => j.status === 'failure');

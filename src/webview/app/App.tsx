@@ -37,6 +37,7 @@ export function App(): React.ReactElement {
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
   const [dialogWorkflowPath, setDialogWorkflowPath] = useState<string | undefined>();
   const [dialogJobId, setDialogJobId] = useState<string | undefined>();
+  const [logsByRunId, setLogsByRunId] = useState<Record<string, string>>({});
 
   useEffect(() => {
     vscode.setState({
@@ -80,6 +81,18 @@ export function App(): React.ReactElement {
           setDialogWorkflowPath(msg.workflowFilePath);
           setDialogJobId(msg.jobId);
           setDialogOpen(true);
+          break;
+
+        case 'logChunk':
+          setLogsByRunId((prev) => ({ ...prev, [msg.runId]: msg.log }));
+          break;
+
+        case 'logAppended':
+          setLogsByRunId((prev) => {
+            const current = prev[msg.runId] || '';
+            const next = current + (current.endsWith('\n') || !current ? '' : '\n') + msg.line;
+            return { ...prev, [msg.runId]: next };
+          });
           break;
       }
     });
@@ -184,6 +197,7 @@ export function App(): React.ReactElement {
         {selectedRun ? (
           <RunDetail
             run={selectedRun}
+            logs={logsByRunId[selectedRun.id] ?? ''}
             onBack={() => setSelectedRunId(undefined)}
             onRunWorkflow={(filePath, jobId) => handleOpenRunDialog(filePath, jobId)}
           />

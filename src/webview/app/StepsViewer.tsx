@@ -3,6 +3,7 @@ import { RunJob } from '../../runs/types';
 import { parseAnsi } from './ansi';
 import { formatDuration } from './format';
 import { StatusIcon } from './StatusIcon';
+import { cleanLogLine, partitionJobLogs } from './stepLogs';
 
 interface StepsViewerProps {
   job: RunJob | undefined;
@@ -68,6 +69,13 @@ export function StepsViewer({ job, rawLogs, isRunActive }: StepsViewerProps): Re
   }
 
   const steps = job.steps.length > 0 ? job.steps : [];
+
+  const stepLogsMap = useMemo(() => {
+    if (!job?.steps) {
+      return {};
+    }
+    return partitionJobLogs(parsedLines, job.name, job.steps);
+  }, [parsedLines, job]);
 
   return (
     <div className="d-flex flex-column flex-1 min-width-0" style={{ overflow: 'hidden' }}>
@@ -170,6 +178,18 @@ export function StepsViewer({ job, rawLogs, isRunActive }: StepsViewerProps): Re
               const isExpanded = Boolean(expandedSteps[step.id]);
               const duration = formatDuration(step.durationMs);
 
+              const allStepLines = stepLogsMap[step.id] || [];
+              const filteredStepLines = allStepLines.filter((line) => {
+                if (searchQuery && !line.toLowerCase().includes(searchQuery.toLowerCase())) {
+                  return false;
+                }
+                return true;
+              });
+
+              const MAX_STEP_LINES = 2000;
+              const isCapped = filteredStepLines.length > MAX_STEP_LINES;
+              const stepLines = isCapped ? filteredStepLines.slice(-MAX_STEP_LINES) : filteredStepLines;
+
               return (
                 <div
                   key={step.id}
@@ -226,21 +246,27 @@ export function StepsViewer({ job, rawLogs, isRunActive }: StepsViewerProps): Re
                         wordBreak: 'break-all'
                       }}
                     >
-                      {parsedLines.length === 0 ? (
+                      {filteredStepLines.length === 0 ? (
                         <span style={{ color: 'var(--color-fg-muted, #8b949e)' }}>
                           No output produced for this step yet.
                         </span>
                       ) : (
-                        parsedLines
-                          .filter((line) => {
-                            if (searchQuery && !line.toLowerCase().includes(searchQuery.toLowerCase())) {
-                              return false;
-                            }
-                            return true;
-                          })
-                          .slice(-500)
-                          .map((line, idx) => {
-                            const segments = parseAnsi(line);
+                        <>
+                          {isCapped && (
+                            <div
+                              className="text-center f6 p-1 mb-2 border rounded-1"
+                              style={{
+                                color: 'var(--color-fg-muted, #8b949e)',
+                                backgroundColor: 'var(--color-canvas-subtle, #161b22)',
+                                borderColor: 'var(--color-border-default, #30363d)'
+                              }}
+                            >
+                              Showing latest {MAX_STEP_LINES.toLocaleString()} of {filteredStepLines.length.toLocaleString()} lines
+                            </div>
+                          )}
+                          {stepLines.map((line, idx) => {
+                            const displayLine = cleanLogLine(line, job.name);
+                            const segments = parseAnsi(displayLine);
                             return (
                               <div key={idx} style={{ lineHeight: '1.6' }}>
                                 {segments.map((seg, sIdx) => (
@@ -256,7 +282,8 @@ export function StepsViewer({ job, rawLogs, isRunActive }: StepsViewerProps): Re
                                 ))}
                               </div>
                             );
-                          })
+                          })}
+                        </>
                       )}
                     </div>
                   )}
