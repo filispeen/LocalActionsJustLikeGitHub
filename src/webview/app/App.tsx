@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { RunStatus, WorkflowRun } from '../../runs/types';
+import { RunWorkflowPayload } from '../../shared/messages';
 import { ParsedWorkflow } from '../../workflows/types';
 import { FilterBar } from './FilterBar';
 import { Header } from './Header';
 import { RunDetail } from './RunDetail';
+import { RunDialog } from './RunDialog';
 import { RunList } from './RunList';
 import { Sidebar } from './Sidebar';
 import { getVsCodeApi, subscribeToHostMessages } from './vscode';
@@ -31,6 +33,10 @@ export function App(): React.ReactElement {
   );
   const [eventFilter, setEventFilter] = useState<string>(savedState.eventFilter || 'all');
   const [query, setQuery] = useState<string>(savedState.query || '');
+
+  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
+  const [dialogWorkflowPath, setDialogWorkflowPath] = useState<string | undefined>();
+  const [dialogJobId, setDialogJobId] = useState<string | undefined>();
 
   useEffect(() => {
     vscode.setState({
@@ -68,6 +74,12 @@ export function App(): React.ReactElement {
 
         case 'workflowsUpdated':
           setWorkflows(msg.workflows);
+          break;
+
+        case 'openRunDialog':
+          setDialogWorkflowPath(msg.workflowFilePath);
+          setDialogJobId(msg.jobId);
+          setDialogOpen(true);
           break;
       }
     });
@@ -126,8 +138,14 @@ export function App(): React.ReactElement {
     });
   }, [runs, selectedWorkflowPath, statusFilter, eventFilter, query]);
 
-  const handleRunWorkflow = (workflowFilePath: string, jobId?: string) => {
-    vscode.postMessage({ type: 'runWorkflow', workflowFilePath, jobId });
+  const handleOpenRunDialog = (filePath?: string, jobId?: string) => {
+    setDialogWorkflowPath(filePath || selectedWorkflowPath);
+    setDialogJobId(jobId);
+    setDialogOpen(true);
+  };
+
+  const handleExecuteRun = (payload: RunWorkflowPayload) => {
+    vscode.postMessage({ type: 'runWorkflow', options: payload });
   };
 
   const handleCancelRun = (runId: string) => {
@@ -167,14 +185,14 @@ export function App(): React.ReactElement {
           <RunDetail
             run={selectedRun}
             onBack={() => setSelectedRunId(undefined)}
-            onRunWorkflow={handleRunWorkflow}
+            onRunWorkflow={(filePath, jobId) => handleOpenRunDialog(filePath, jobId)}
           />
         ) : (
           <>
             <Header
               selectedWorkflow={selectedWorkflow}
               workflows={workflows}
-              onRunWorkflow={handleRunWorkflow}
+              onRunWorkflow={(filePath) => handleOpenRunDialog(filePath)}
               onOpenFile={handleOpenFile}
             />
 
@@ -196,6 +214,16 @@ export function App(): React.ReactElement {
               onDeleteRun={handleDeleteRun}
             />
           </>
+        )}
+
+        {dialogOpen && (
+          <RunDialog
+            workflows={workflows.filter((w) => w.isValid)}
+            initialWorkflowPath={dialogWorkflowPath}
+            initialJobId={dialogJobId}
+            onClose={() => setDialogOpen(false)}
+            onRun={handleExecuteRun}
+          />
         )}
       </main>
     </div>

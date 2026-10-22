@@ -3,10 +3,10 @@ import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
 import { RunStore } from '../../runs/store';
 import { WorkflowRun } from '../../runs/types';
-import { HostToWebviewMessage, WebviewToHostMessage } from '../../shared/messages';
+import { HostToWebviewMessage, RunWorkflowPayload, WebviewToHostMessage } from '../../shared/messages';
 import { WorkflowDiscovery } from '../../workflows/discovery';
 
-export type RunWorkflowHandler = (workflowFilePath: string, jobId?: string) => Promise<WorkflowRun | undefined>;
+export type RunWorkflowHandler = (payload: RunWorkflowPayload) => Promise<WorkflowRun | undefined>;
 export type CancelRunHandler = (runId: string) => Promise<void>;
 
 export class ActionsPanel {
@@ -108,6 +108,14 @@ export class ActionsPanel {
     this.panel.webview.html = this.getHtmlForWebview(this.panel.webview);
   }
 
+  public openRunDialog(workflowFilePath?: string, jobId?: string): void {
+    this.postMessage({
+      type: 'openRunDialog',
+      workflowFilePath,
+      jobId
+    });
+  }
+
   public postRunUpdated(run: WorkflowRun): void {
     this.postMessage({
       type: 'runUpdated',
@@ -149,7 +157,7 @@ export class ActionsPanel {
         break;
 
       case 'runWorkflow':
-        await this.onRunWorkflow(message.workflowFilePath, message.jobId);
+        await this.onRunWorkflow(message.options);
         break;
 
       case 'cancelRun':
@@ -163,7 +171,10 @@ export class ActionsPanel {
       case 'rerunRun': {
         const run = this.store.getRun(message.runId);
         if (run) {
-          await this.onRunWorkflow(run.workflowFilePath);
+          await this.onRunWorkflow({
+            workflowFilePath: run.workflowFilePath,
+            event: run.event
+          });
         }
         break;
       }
@@ -173,7 +184,11 @@ export class ActionsPanel {
         if (run) {
           const failedJob = run.jobs.find((j) => j.status === 'failure');
           if (failedJob) {
-            await this.onRunWorkflow(run.workflowFilePath, failedJob.id);
+            await this.onRunWorkflow({
+              workflowFilePath: run.workflowFilePath,
+              jobId: failedJob.id,
+              event: run.event
+            });
           }
         }
         break;

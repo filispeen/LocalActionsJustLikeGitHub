@@ -1,3 +1,6 @@
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { ActionsPanel } from './webview/host/ActionsPanel';
 import { ComponentsViewProvider } from './views/ComponentsView';
@@ -6,6 +9,7 @@ import { WorkflowFileTreeItem, WorkflowJobTreeItem, WorkflowsViewProvider } from
 import { RunStore } from './runs/store';
 import { ActRunner } from './act/runner';
 import { WorkflowRun } from './runs/types';
+import { RunWorkflowPayload } from './shared/messages';
 
 export function activate(context: vscode.ExtensionContext): void {
   const store = new RunStore(context.globalStorageUri.fsPath);
@@ -20,23 +24,30 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const activeRunners = new Map<string, ActRunner>();
 
-  const executeRun = async (workflowFilePath: string, jobId?: string): Promise<WorkflowRun | undefined> => {
+  const executeRun = async (payload: RunWorkflowPayload): Promise<WorkflowRun | undefined> => {
     const config = vscode.workspace.getConfiguration('localActions');
     const actPath = config.get<string>('actPath') || 'act';
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd();
 
-    const workflow = discovery.getWorkflows().find((w) => w.filePath === workflowFilePath);
-    const workflowName = workflow?.name ?? workflowFilePath.split(/[/\\]/).pop() ?? 'Workflow';
+    const workflow = discovery.getWorkflows().find((w) => w.filePath === payload.workflowFilePath);
+    const workflowName = workflow?.name ?? payload.workflowFilePath.split(/[/\\]/).pop() ?? 'Workflow';
+
+    let eventPayloadPath: string | undefined;
+    if (payload.payloadJson && payload.payloadJson.trim().length > 0) {
+      const tempPath = path.join(os.tmpdir(), `act-payload-${Date.now()}.json`);
+      await fs.writeFile(tempPath, payload.payloadJson, 'utf8');
+      eventPayloadPath = tempPath;
+    }
 
     const runId = `run-${Date.now()}`;
     const run: WorkflowRun = {
       id: runId,
-      workflowFilePath,
+      workflowFilePath: payload.workflowFilePath,
       workflowName,
-      event: workflow?.events[0] || 'push',
+      event: payload.event || workflow?.events[0] || 'push',
       status: 'queued',
       startedAt: new Date().toISOString(),
-      trigger: 'manual',
+      trigger: payload.event || 'manual',
       jobs: workflow?.jobs.map((j) => ({
         id: j.id,
         name: j.name,
@@ -46,14 +57,23 @@ export function activate(context: vscode.ExtensionContext): void {
       })) ?? []
     };
 
+    const platforms: Record<string, string> = {};
+    if (payload.platformOverride && payload.platformOverride.trim().length > 0) {
+      platforms['ubuntu-latest'] = payload.platformOverride.trim();
+    }
+
     const runner = new ActRunner(
       actPath,
       workspaceFolder,
       run,
       {
-        workflowPath: workflowFilePath,
-        jobId,
-        useHostRunner: true,
+        workflowPath: payload.workflowFilePath,
+        jobId: payload.jobId,
+        event: payload.event,
+        eventPayloadPath,
+        inputs: payload.inputs,
+        platforms: Object.keys(platforms).length > 0 ? platforms : undefined,
+        useHostRunner: payload.useHostRunner !== false,
         jsonOutput: true
       },
       [],
@@ -67,8 +87,15 @@ export function activate(context: vscode.ExtensionContext): void {
 
     activeRunners.set(runId, runner);
 
-    return runner.start().finally(() => {
+    return runner.start().finally(async () => {
       activeRunners.delete(runId);
+      if (eventPayloadPath) {
+        try {
+          await fs.unlink(eventPayloadPath);
+        } catch {
+          // Ignore temp cleanup error
+        }
+      }
     });
   };
 
@@ -80,6 +107,17 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   };
 
+  const openActionsPageWithDialog = (filePath?: string, jobId?: string) => {
+    const panel = ActionsPanel.render(
+      context.extensionUri,
+      store,
+      discovery,
+      executeRun,
+      cancelRun
+    );
+    panel.openRunDialog(filePath, jobId);
+  };
+
   context.subscriptions.push(
     discovery.registerWatcher(),
 
@@ -88,9 +126,19 @@ export function activate(context: vscode.ExtensionContext): void {
         context.extensionUri,
         store,
         discovery,
-        (filePath) => executeRun(filePath).then(() => undefined),
+        executeRun,
         cancelRun
       );
+    }),
+
+    vscode.commands.registerCommand('localActions.runWorkflowWithInputs', (item?: WorkflowFileTreeItem | WorkflowJobTreeItem) => {
+      if (item instanceof WorkflowJobTreeItem) {
+        openActionsPageWithDialog(item.workflow.filePath, item.job.id);
+      } else if (item instanceof WorkflowFileTreeItem) {
+        openActionsPageWithDialog(item.workflow.filePath);
+      } else {
+        openActionsPageWithDialog();
+      }
     }),
 
     vscode.commands.registerCommand('localActions.refreshComponents', () => {
@@ -111,10 +159,15 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand('localActions.runWorkflow', async (item?: WorkflowFileTreeItem) => {
       if (!item?.workflow) {
+        openActionsPageWithDialog();
+        return;
+      }
+      if (item.workflow.inputs.length > 0) {
+        openActionsPageWithDialog(item.workflow.filePath);
         return;
       }
       vscode.window.showInformationMessage(`Running workflow: ${item.workflow.name}`);
-      const result = await executeRun(item.workflow.filePath);
+      const result = await executeRun({ workflowFilePath: item.workflow.filePath });
       if (result?.status === 'success') {
         vscode.window.showInformationMessage(`Workflow succeeded: ${result.workflowName}`);
       } else if (result?.status === 'failure') {
@@ -127,7 +180,10 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       vscode.window.showInformationMessage(`Running job: ${item.job.name}`);
-      const result = await executeRun(item.workflow.filePath, item.job.id);
+      const result = await executeRun({
+        workflowFilePath: item.workflow.filePath,
+        jobId: item.job.id
+      });
       if (result?.status === 'success') {
         vscode.window.showInformationMessage(`Job succeeded: ${item.job.name}`);
       } else if (result?.status === 'failure') {

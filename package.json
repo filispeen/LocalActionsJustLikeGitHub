@@ -81,6 +81,12 @@
         "title": "Run Job",
         "category": "Local Actions",
         "icon": "$(play)"
+      },
+      {
+        "command": "localActions.runWorkflowWithInputs",
+        "title": "Run with Inputs...",
+        "category": "Local Actions",
+        "icon": "$(gear)"
       }
     ],
     "menus": {
@@ -105,6 +111,11 @@
         {
           "command": "localActions.runWorkflow",
           "when": "view == localActions.workflowsView && viewItem == workflowItem",
+          "group": "inline"
+        },
+        {
+          "command": "localActions.runWorkflowWithInputs",
+          "when": "view == localActions.workflowsView && (viewItem == workflowItem || viewItem == jobItem)",
           "group": "inline"
         },
         {

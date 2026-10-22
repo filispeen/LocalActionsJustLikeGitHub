@@ -97,11 +97,11 @@ Done when: a finished run can be inspected step by step like on GitHub.
 
 ## Phase 6: Run dialog
 
-- [ ] Pick workflow, optional job, event
-- [ ] Form generated from workflow_dispatch inputs
-- [ ] JSON payload editor with validation
-- [ ] Runner/platform override
-- [ ] Same flow from page button, tree context menu and command palette
+- [x] Pick workflow, optional job, event
+- [x] Form generated from workflow_dispatch inputs
+- [x] JSON payload editor with validation
+- [x] Runner/platform override
+- [x] Same flow from page button, tree context menu and command palette
 
 Done when: all run modes from the reference feature list work (all workflows, one workflow, one job, event, workflow event, job event).
 
