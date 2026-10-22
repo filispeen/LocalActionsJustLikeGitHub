@@ -15,8 +15,13 @@ export class SecretsManager {
 
   constructor(
     private readonly secretStorage: SecretStorageLike,
-    private readonly workspaceState: MementoLike
+    private readonly workspaceState: MementoLike,
+    private readonly workspacePrefix?: string
   ) {}
+
+  private getStorageKey(key: string): string {
+    return this.workspacePrefix ? `${this.workspacePrefix}:${key}` : key;
+  }
 
   public onDidChangeSecrets(listener: () => void): { dispose: () => void } {
     this.listeners.push(listener);
@@ -37,11 +42,11 @@ export class SecretsManager {
   }
 
   public async getSecret(key: string): Promise<string | undefined> {
-    return this.secretStorage.get(key);
+    return this.secretStorage.get(this.getStorageKey(key));
   }
 
   public async setSecret(key: string, value: string): Promise<void> {
-    await this.secretStorage.store(key, value);
+    await this.secretStorage.store(this.getStorageKey(key), value);
     const keys = this.getSecretKeys();
     if (!keys.includes(key)) {
       keys.push(key);
@@ -51,7 +56,7 @@ export class SecretsManager {
   }
 
   public async deleteSecret(key: string): Promise<void> {
-    await this.secretStorage.delete(key);
+    await this.secretStorage.delete(this.getStorageKey(key));
     const keys = this.getSecretKeys().filter((k) => k !== key);
     await this.workspaceState.update(SecretsManager.KEYS_LIST_KEY, keys);
     this.notifyChange();
@@ -65,7 +70,7 @@ export class SecretsManager {
     const keys = this.getSecretKeys();
     const result: Record<string, string> = {};
     for (const key of keys) {
-      const val = await this.secretStorage.get(key);
+      const val = await this.secretStorage.get(this.getStorageKey(key));
       if (val !== undefined) {
         result[key] = val;
       }

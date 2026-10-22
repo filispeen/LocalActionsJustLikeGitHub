@@ -59,4 +59,23 @@ describe('SecretsManager', () => {
     expect(manager.getSecretKeys()).toEqual([]);
     expect(await manager.getSecret('API_KEY')).toBeUndefined();
   });
+
+  it('isolates secrets across different workspaces using workspace prefix', async () => {
+    const sharedStorage = new MockSecretStorage();
+    const mementoA = new MockMemento();
+    const mementoB = new MockMemento();
+
+    const managerA = new SecretsManager(sharedStorage as never, mementoA as never, 'workspace-a');
+    const managerB = new SecretsManager(sharedStorage as never, mementoB as never, 'workspace-b');
+
+    await managerA.setSecret('API_KEY', 'key_from_a');
+    await managerB.setSecret('API_KEY', 'key_from_b');
+
+    expect(await managerA.getSecret('API_KEY')).toBe('key_from_a');
+    expect(await managerB.getSecret('API_KEY')).toBe('key_from_b');
+
+    await managerA.deleteSecret('API_KEY');
+    expect(await managerA.getSecret('API_KEY')).toBeUndefined();
+    expect(await managerB.getSecret('API_KEY')).toBe('key_from_b');
+  });
 });
