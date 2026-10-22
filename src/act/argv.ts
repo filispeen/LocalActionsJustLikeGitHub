@@ -36,9 +36,9 @@ export function buildActArgv(options: ActRunOptions): string[] {
   }
 
   if (options.secrets) {
-    for (const [key, value] of Object.entries(options.secrets)) {
+    for (const key of Object.keys(options.secrets)) {
       if (key.trim().length > 0) {
-        argv.push('-s', `${key.trim()}=${value}`);
+        argv.push('-s', key.trim());
       }
     }
   }
@@ -71,20 +71,34 @@ export function buildActArgv(options: ActRunOptions): string[] {
     argv.push('--input-file', options.inputFile.trim());
   }
 
-  let hasUbuntuLatestPlatform = false;
+  const standardHostPlatforms = [
+    'ubuntu-latest',
+    'ubuntu-24.04',
+    'ubuntu-22.04',
+    'ubuntu-20.04',
+    'windows-latest',
+    'windows-2022',
+    'windows-2019',
+    'macos-latest',
+    'macos-14',
+    'macos-13',
+    'macos-12'
+  ];
+
   if (options.platforms) {
     for (const [key, value] of Object.entries(options.platforms)) {
       if (key.trim().length > 0) {
-        if (key.trim() === 'ubuntu-latest') {
-          hasUbuntuLatestPlatform = true;
-        }
         argv.push('-P', `${key.trim()}=${value.trim()}`);
       }
     }
   }
 
-  if (options.useHostRunner && !hasUbuntuLatestPlatform) {
-    argv.push('-P', 'ubuntu-latest=-self-hosted');
+  if (options.useHostRunner) {
+    for (const platform of standardHostPlatforms) {
+      if (!options.platforms || options.platforms[platform] === undefined) {
+        argv.push('-P', `${platform}=-self-hosted`);
+      }
+    }
   }
 
   if (options.dryrun) {
