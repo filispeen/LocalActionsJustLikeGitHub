@@ -10,7 +10,7 @@ import { SettingsLeafItem, SettingsViewProvider } from './views/SettingsView';
 import { SecretsManager } from './settings/secrets';
 import { RunStore } from './runs/store';
 import { ActRunner } from './act/runner';
-import { WorkflowRun } from './runs/types';
+import { RunStep, WorkflowRun } from './runs/types';
 import { RunWorkflowPayload } from './shared/messages';
 
 const activeRunners = new Map<string, ActRunner>();
@@ -126,13 +126,38 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       inputs: payload.inputs,
       useHostRunner,
       platformOverride: payload.platformOverride,
-      jobs: workflow?.jobs.map((j) => ({
-        id: j.id,
-        name: j.name,
-        status: 'queued',
-        needs: j.needs,
-        steps: []
-      })) ?? []
+      jobs: workflow?.jobs.map((j) => {
+        const initialSteps: RunStep[] = [];
+        if (j.steps && j.steps.length > 0) {
+          initialSteps.push({
+            id: 'Set up job',
+            name: 'Set up job',
+            status: 'queued',
+            logLinesCount: 0
+          });
+          for (const s of j.steps) {
+            initialSteps.push({
+              id: s.id || s.name,
+              name: s.name,
+              status: 'queued',
+              logLinesCount: 0
+            });
+          }
+          initialSteps.push({
+            id: 'Complete job',
+            name: 'Complete job',
+            status: 'queued',
+            logLinesCount: 0
+          });
+        }
+        return {
+          id: j.id,
+          name: j.name,
+          status: 'queued',
+          needs: j.needs,
+          steps: initialSteps
+        };
+      }) ?? []
     };
 
     const runner = new ActRunner(

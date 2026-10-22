@@ -7,12 +7,20 @@ export interface WorkflowInput {
   options?: string[];
 }
 
+export interface WorkflowStepDefinition {
+  id: string;
+  name: string;
+  uses?: string;
+  run?: string;
+}
+
 export interface WorkflowJob {
   id: string;
   name: string;
   needs: string[];
   runsOn?: string | string[];
   hasMatrix: boolean;
+  steps: WorkflowStepDefinition[];
 }
 
 export interface ParsedWorkflow {

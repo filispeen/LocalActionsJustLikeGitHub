@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanLogLine, partitionJobLogs } from '../../src/webview/app/stepLogs';
+import { cleanLogLine, extractStepsFromLogs, partitionJobLogs } from '../../src/webview/app/stepLogs';
 import { RunStep } from '../../src/runs/types';
 
 describe('stepLogs', () => {
@@ -45,5 +45,67 @@ describe('stepLogs', () => {
     const partitioned = partitionJobLogs(lines, 'job', steps);
 
     expect(partitioned.only).toEqual(lines);
+  });
+
+  it('correctly extracts steps and partitions all lines without dropping any for run-1792705337566.log', () => {
+    const realLogLines = [
+      "Couldn't get a valid docker connection: no DOCKER_HOST and an invalid container socket ''",
+      '[Build and Publish Experimental] ⭐ Run Set up job',
+      '[Build and Publish Experimental]   ✅  Success - Set up job',
+      "[Build and Publish Experimental]   |   ☁  git clone 'https://github.com/actions/cache' # ref=v4",
+      "[Build and Publish Experimental]   |   ☁  git clone 'https://github.com/actions/upload-artifact' # ref=v4",
+      "[Build and Publish Experimental]   |   ☁  git clone 'https://github.com/softprops/action-gh-release' # ref=v2",
+      '[Build and Publish Experimental] ⭐ Run Main Checkout repository',
+      '[Build and Publish Experimental]   ✅  Success - Checkout repository [8588ms]',
+      '[Build and Publish Experimental] ⭐ Run Main Cache NVIDIA DLSS SDK',
+      '[Build and Publish Experimental]   | (node:18868) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.',
+      '',
+      '[Build and Publish Experimental]   | (Use `node --trace-deprecation ...` to show where the warning was created)',
+      '',
+      '[Build and Publish Experimental]   | Cache not found for input keys: dlss-sdk-Windows-v1, dlss-sdk-Windows-',
+      '',
+      '[Build and Publish Experimental]   ✅  Success - Cache NVIDIA DLSS SDK [1577ms]',
+      '[Build and Publish Experimental] ⭐ Run Main Clone NVIDIA DLSS SDK',
+      '[Build and Publish Experimental]   | Cannot find: pwsh in PATH',
+      '',
+      '[Build and Publish Experimental]   ❌  Failure - Clone NVIDIA DLSS SDK [57ms]',
+      '[Build and Publish Experimental]   | Cannot find: pwsh in PATH',
+      '[Build and Publish Experimental] ⭐ Run Complete job',
+      '[Build and Publish Experimental]   ✅  Success - Complete job',
+      '[Build and Publish Experimental]   🏁  Job failed',
+      "Error: Job 'Build and Publish Experimental' failed"
+    ];
+
+    const extracted = extractStepsFromLogs(realLogLines);
+    expect(extracted).toHaveLength(5);
+    expect(extracted.map((s) => s.name)).toEqual([
+      'Set up job',
+      'Checkout repository',
+      'Cache NVIDIA DLSS SDK',
+      'Clone NVIDIA DLSS SDK',
+      'Complete job'
+    ]);
+    expect(extracted[3].status).toBe('failure');
+    expect(extracted[3].durationMs).toBe(57);
+    expect(extracted[4].status).toBe('success');
+
+    const partitioned = partitionJobLogs(realLogLines, 'Build and Publish Experimental', extracted);
+
+    expect(partitioned['Set up job']).toHaveLength(6);
+    expect(partitioned['Set up job'][0]).toContain("Couldn't get a valid docker connection");
+    expect(partitioned['Set up job'][3]).toContain("git clone 'https://github.com/actions/cache'");
+
+    expect(partitioned['Checkout repository']).toHaveLength(2);
+    expect(partitioned['Cache NVIDIA DLSS SDK']).toHaveLength(8);
+
+    expect(partitioned['Clone NVIDIA DLSS SDK']).toHaveLength(5);
+    expect(partitioned['Clone NVIDIA DLSS SDK'][4]).toContain('Cannot find: pwsh in PATH');
+
+    expect(partitioned['Complete job']).toHaveLength(4);
+    expect(partitioned['Complete job'][2]).toContain('🏁  Job failed');
+    expect(partitioned['Complete job'][3]).toContain("Error: Job 'Build and Publish Experimental' failed");
+
+    const totalLinesInSteps = Object.values(partitioned).reduce((sum, arr) => sum + arr.length, 0);
+    expect(totalLinesInSteps).toBe(realLogLines.length);
   });
 });

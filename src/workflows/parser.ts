@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 import * as yaml from 'yaml';
-import { ParsedWorkflow, WorkflowInput, WorkflowJob } from './types';
+import { ParsedWorkflow, WorkflowInput, WorkflowJob, WorkflowStepDefinition } from './types';
 
 export function parseWorkflowYaml(content: string, filePath: string, workspaceFolderUri: string): ParsedWorkflow {
   const fileName = path.basename(filePath);
@@ -119,12 +119,41 @@ export function parseWorkflowYaml(content: string, filePath: string, workspaceFo
           }
         }
 
+        const steps: WorkflowStepDefinition[] = [];
+        if (Array.isArray(jobObj.steps)) {
+          for (let i = 0; i < jobObj.steps.length; i++) {
+            const rawStep = jobObj.steps[i];
+            if (typeof rawStep === 'object' && rawStep !== null) {
+              const stepObj = rawStep as Record<string, unknown>;
+              const stepName = typeof stepObj.name === 'string' && stepObj.name.trim().length > 0
+                ? stepObj.name.trim()
+                : typeof stepObj.uses === 'string' && stepObj.uses.trim().length > 0
+                  ? stepObj.uses.trim()
+                  : typeof stepObj.run === 'string' && stepObj.run.trim().length > 0
+                    ? stepObj.run.trim().split(/\r?\n/)[0]
+                    : typeof stepObj.id === 'string' && stepObj.id.trim().length > 0
+                      ? stepObj.id.trim()
+                      : `Step ${i + 1}`;
+              const stepId = typeof stepObj.id === 'string' && stepObj.id.trim().length > 0
+                ? stepObj.id.trim()
+                : stepName;
+              steps.push({
+                id: stepId,
+                name: stepName,
+                uses: typeof stepObj.uses === 'string' ? stepObj.uses : undefined,
+                run: typeof stepObj.run === 'string' ? stepObj.run : undefined
+              });
+            }
+          }
+        }
+
         jobs.push({
           id: jobId,
           name: jobName,
           needs,
           runsOn,
-          hasMatrix
+          hasMatrix,
+          steps
         });
       }
     }

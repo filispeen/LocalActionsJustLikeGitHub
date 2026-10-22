@@ -29,6 +29,56 @@ export function cleanLogLine(line: string, jobName?: string): string {
   return cleaned;
 }
 
+export function extractStepsFromLogs(allLines: string[]): RunStep[] {
+  const steps: RunStep[] = [];
+  const seen = new Set<string>();
+
+  for (const rawLine of allLines) {
+    const line = rawLine.trim();
+    const runMatch = line.match(/⭐\s*Run\s+(.+)$/);
+    if (runMatch) {
+      const stepTarget = runMatch[1].trim();
+      const cleanTarget = stepTarget.replace(/^(Main|Post|Pre)\s+/, '').trim();
+      if (!seen.has(cleanTarget)) {
+        seen.add(cleanTarget);
+        steps.push({
+          id: cleanTarget,
+          name: cleanTarget,
+          status: 'success',
+          logLinesCount: 0
+        });
+      }
+    }
+
+    const failMatch = line.match(/❌\s*Failure\s*-\s*([^[]+)(?:\s*\[([0-9.]+)(s|ms)\])?/);
+    if (failMatch) {
+      const stepTarget = failMatch[1].trim();
+      const cleanTarget = stepTarget.replace(/^(Main|Post|Pre)\s+/, '').trim();
+      const step = steps.find((s) => s.name === cleanTarget || s.id === cleanTarget);
+      if (step) {
+        step.status = 'failure';
+        if (failMatch[2]) {
+          const val = parseFloat(failMatch[2]);
+          step.durationMs = failMatch[3] === 's' ? Math.round(val * 1000) : Math.round(val);
+        }
+      }
+    }
+
+    const succMatch = line.match(/✅\s*Success\s*-\s*([^[]+)(?:\s*\[([0-9.]+)(s|ms)\])?/);
+    if (succMatch) {
+      const stepTarget = succMatch[1].trim();
+      const cleanTarget = stepTarget.replace(/^(Main|Post|Pre)\s+/, '').trim();
+      const step = steps.find((s) => s.name === cleanTarget || s.id === cleanTarget);
+      if (step && succMatch[2]) {
+        const val = parseFloat(succMatch[2]);
+        step.durationMs = succMatch[3] === 's' ? Math.round(val * 1000) : Math.round(val);
+      }
+    }
+  }
+
+  return steps;
+}
+
 export function partitionJobLogs(
   allLines: string[],
   jobName: string,
@@ -43,24 +93,31 @@ export function partitionJobLogs(
     return result;
   }
 
-  let currentStepId: string | undefined;
+  let currentStepId: string | undefined = steps[0]?.id;
 
   for (const rawLine of allLines) {
     const line = rawLine.trim();
-    if (!line) {
-      continue;
-    }
 
     const runMatch = line.match(/⭐\s*Run\s+(.+)$/);
     if (runMatch) {
       const stepTarget = runMatch[1].trim();
-      const matched = steps.find(
-        (s) =>
-          s.name === stepTarget ||
-          s.id === stepTarget ||
-          stepTarget.includes(s.name) ||
-          s.name.includes(stepTarget)
-      );
+      const cleanTarget = stepTarget.replace(/^(Main|Post|Pre)\s+/, '').trim();
+
+      const matched =
+        steps.find(
+          (s) =>
+            s.name === stepTarget ||
+            s.name === cleanTarget ||
+            s.id === stepTarget ||
+            s.id === cleanTarget
+        ) ||
+        steps.find(
+          (s) =>
+            s.name.toLowerCase() === cleanTarget.toLowerCase() ||
+            s.id.toLowerCase() === cleanTarget.toLowerCase()
+        ) ||
+        steps.find((s) => cleanTarget.includes(s.name) || s.name.includes(cleanTarget));
+
       if (matched) {
         currentStepId = matched.id;
       }
@@ -68,10 +125,6 @@ export function partitionJobLogs(
 
     if (currentStepId && result[currentStepId]) {
       result[currentStepId].push(rawLine);
-    }
-
-    if (line.includes('✅  Success - ') || line.includes('❌  Failure - ')) {
-      currentStepId = undefined;
     }
   }
 

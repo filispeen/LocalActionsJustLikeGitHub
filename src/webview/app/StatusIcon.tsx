@@ -86,6 +86,25 @@ export function StatusIcon({ status, size = 16 }: StatusIconProps): React.ReactE
         </svg>
       );
 
+    case 'skipped':
+      return (
+        <svg
+          width={size}
+          height={size}
+          viewBox="0 0 16 16"
+          fill="none"
+          style={{ verticalAlign: 'middle', flexShrink: 0 }}
+        >
+          <circle cx="8" cy="8" r="7" stroke="#6e7681" strokeWidth="1.5" />
+          <path
+            d="M5 8H11"
+            stroke="#6e7681"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+
     case 'queued':
     default:
       return (

@@ -3,7 +3,7 @@ import { RunJob } from '../../runs/types';
 import { parseAnsi } from './ansi';
 import { formatDuration } from './format';
 import { StatusIcon } from './StatusIcon';
-import { cleanLogLine, partitionJobLogs } from './stepLogs';
+import { cleanLogLine, extractStepsFromLogs, partitionJobLogs } from './stepLogs';
 
 interface StepsViewerProps {
   job: RunJob | undefined;
@@ -17,6 +17,7 @@ export function StepsViewer({ job, rawLogs, isRunActive }: StepsViewerProps): Re
   const [showTimestamps, setShowTimestamps] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [viewMode, setViewMode] = useState<'steps' | 'raw'>('steps');
 
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -27,11 +28,18 @@ export function StepsViewer({ job, rawLogs, isRunActive }: StepsViewerProps): Re
     return rawLogs.split(/\r?\n/).filter((l) => l.trim().length > 0);
   }, [rawLogs]);
 
+  const steps = useMemo(() => {
+    if (job?.steps && job.steps.length > 0) {
+      return job.steps;
+    }
+    return extractStepsFromLogs(parsedLines);
+  }, [job?.steps, parsedLines]);
+
   useEffect(() => {
-    if (job?.steps) {
+    if (steps.length > 0) {
       setExpandedSteps((prev) => {
         const next = { ...prev };
-        for (const step of job.steps) {
+        for (const step of steps) {
           if (next[step.id] === undefined) {
             next[step.id] = step.status === 'in_progress' || step.status === 'failure';
           }
@@ -39,7 +47,7 @@ export function StepsViewer({ job, rawLogs, isRunActive }: StepsViewerProps): Re
         return next;
       });
     }
-  }, [job]);
+  }, [steps]);
 
   useEffect(() => {
     if (autoScroll && isRunActive && logsEndRef.current) {
@@ -68,14 +76,12 @@ export function StepsViewer({ job, rawLogs, isRunActive }: StepsViewerProps): Re
     );
   }
 
-  const steps = job.steps.length > 0 ? job.steps : [];
-
   const stepLogsMap = useMemo(() => {
-    if (!job?.steps) {
+    if (steps.length === 0) {
       return {};
     }
-    return partitionJobLogs(parsedLines, job.name, job.steps);
-  }, [parsedLines, job]);
+    return partitionJobLogs(parsedLines, job.name, steps);
+  }, [parsedLines, job.name, steps]);
 
   return (
     <div className="d-flex flex-column flex-1 min-width-0" style={{ overflow: 'hidden' }}>
@@ -124,22 +130,39 @@ export function StepsViewer({ job, rawLogs, isRunActive }: StepsViewerProps): Re
           </label>
         </div>
 
-        <button
-          type="button"
-          className="btn btn-sm"
-          onClick={handleCopy}
-          style={{
-            backgroundColor: 'var(--color-btn-bg, #21262d)',
-            color: 'var(--color-fg-default, #c9d1d9)',
-            borderColor: 'var(--color-btn-border, #30363d)'
-          }}
-        >
-          {copied ? 'Copied!' : 'Copy log'}
-        </button>
+        <div className="d-flex flex-items-center gap-2">
+          {steps.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => setViewMode((m) => (m === 'steps' ? 'raw' : 'steps'))}
+              style={{
+                backgroundColor: 'var(--color-btn-bg, #21262d)',
+                color: 'var(--color-fg-default, #c9d1d9)',
+                borderColor: 'var(--color-btn-border, #30363d)'
+              }}
+            >
+              {viewMode === 'steps' ? 'View raw logs' : 'View steps'}
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={handleCopy}
+            style={{
+              backgroundColor: 'var(--color-btn-bg, #21262d)',
+              color: 'var(--color-fg-default, #c9d1d9)',
+              borderColor: 'var(--color-btn-border, #30363d)'
+            }}
+          >
+            {copied ? 'Copied!' : 'Copy log'}
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 p-3" style={{ overflowY: 'auto' }}>
-        {steps.length === 0 ? (
+        {viewMode === 'raw' || steps.length === 0 ? (
           <div
             className="p-3 font-mono f6 border rounded-2"
             style={{

@@ -111,23 +111,50 @@ export class ActRunner {
           if (event.type === 'job_finish' && event.status) {
             job.status = event.status;
             job.completedAt = event.timestamp ?? new Date().toISOString();
+            for (const s of job.steps) {
+              if (s.status === 'queued') {
+                s.status = 'skipped';
+              }
+            }
           }
 
           if (event.stepName) {
-            let step = job.steps.find((s) => s.name === event.stepName || s.id === event.stepId);
+            const cleanEventName = event.stepName.replace(/^(Main|Post|Pre)\s+/, '').trim();
+            let step = job.steps.find((s) =>
+              s.name === event.stepName ||
+              s.name === cleanEventName ||
+              s.id === event.stepId ||
+              s.id === cleanEventName
+            );
+            if (!step) {
+              step = job.steps.find((s) =>
+                s.name.toLowerCase() === event.stepName!.toLowerCase() ||
+                s.name.toLowerCase() === cleanEventName.toLowerCase()
+              );
+            }
             if (!step) {
               step = {
-                id: event.stepId ?? event.stepName,
-                name: event.stepName,
+                id: event.stepId ?? cleanEventName,
+                name: cleanEventName,
                 status: 'in_progress',
                 startedAt: event.timestamp ?? new Date().toISOString(),
                 logLinesCount: 0
               };
-              job.steps.push(step);
+              const completeIdx = job.steps.findIndex(
+                (s) => s.name === 'Complete job' && s.status === 'queued'
+              );
+              if (completeIdx !== -1) {
+                job.steps.splice(completeIdx, 0, step);
+              } else {
+                job.steps.push(step);
+              }
             }
 
             if (event.type === 'step_start') {
               step.status = 'in_progress';
+              if (!step.startedAt) {
+                step.startedAt = event.timestamp ?? new Date().toISOString();
+              }
             } else if (event.type === 'step_finish' && event.status) {
               step.status = event.status;
               step.completedAt = event.timestamp ?? new Date().toISOString();
@@ -209,6 +236,16 @@ export class ActRunner {
   }
 
   private async finishRun(resolve: (run: WorkflowRun) => void): Promise<void> {
+    for (const job of this.run.jobs) {
+      for (const s of job.steps) {
+        if (s.status === 'queued') {
+          s.status = 'skipped';
+        } else if (s.status === 'in_progress') {
+          s.status = job.status === 'cancelled' || this.run.status === 'cancelled' ? 'cancelled' : 'failure';
+        }
+      }
+    }
+
     this.run.completedAt = new Date().toISOString();
     const startMs = new Date(this.run.startedAt).getTime();
     const endMs = new Date(this.run.completedAt).getTime();

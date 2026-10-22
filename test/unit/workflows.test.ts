@@ -145,4 +145,30 @@ jobs:
     expect(parsed.isValid).toBe(false);
     expect(parsed.error).toBe('Empty or invalid workflow document');
   });
+
+  it('parses declared steps in exact sequence with names or fallback values', () => {
+    const yaml = `
+name: Pipeline
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm test
+      - id: custom
+        run: echo custom
+`;
+    const parsed = parseWorkflowYaml(yaml, '/repo/.github/workflows/pipe.yml', 'file:///repo');
+    expect(parsed.isValid).toBe(true);
+    expect(parsed.jobs[0].steps).toHaveLength(4);
+    expect(parsed.jobs[0].steps[0].name).toBe('Checkout repository');
+    expect(parsed.jobs[0].steps[0].uses).toBe('actions/checkout@v4');
+    expect(parsed.jobs[0].steps[1].name).toBe('actions/setup-node@v4');
+    expect(parsed.jobs[0].steps[2].name).toBe('npm test');
+    expect(parsed.jobs[0].steps[3].id).toBe('custom');
+    expect(parsed.jobs[0].steps[3].name).toBe('echo custom');
+  });
 });
