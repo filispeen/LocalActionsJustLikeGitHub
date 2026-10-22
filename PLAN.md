@@ -75,13 +75,13 @@ Done when: a real workflow run produces a stored run with correct job and step s
 
 ## Phase 4: Actions page, shell and run list
 
-- [ ] WebviewPanel with CSP and nonce, typed protocol, state restore, VS Code theme variables
-- [ ] Install @primer/css and bundle it locally in the webview (no CDN)
-- [ ] GitHub Actions tab layout, matching the real page: left sidebar (All workflows plus each workflow), header, run list rows
-- [ ] Row content: status icon, run title, workflow name, event, branch, duration, relative time
-- [ ] Filters: workflow, event, status
-- [ ] Live updates for in-progress runs
-- [ ] Run workflow button wired to the Phase 6 flow (stub until then)
+- [x] WebviewPanel with CSP and nonce, typed protocol, state restore, VS Code theme variables
+- [x] Install @primer/css and bundle it locally in the webview (no CDN)
+- [x] GitHub Actions tab layout, matching the real page: left sidebar (All workflows plus each workflow), header, run list rows
+- [x] Row content: status icon, run title, workflow name, event, branch, duration, relative time
+- [x] Filters: workflow, event, status
+- [x] Live updates for in-progress runs
+- [x] Run workflow button wired to the Phase 6 flow (stub until then)
 
 Done when: runs appear live and filters work.
 

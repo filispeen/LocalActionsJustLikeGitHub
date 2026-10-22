@@ -1,45 +1,187 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { RunStatus, WorkflowRun } from '../../runs/types';
+import { ParsedWorkflow } from '../../workflows/types';
+import { FilterBar } from './FilterBar';
+import { Header } from './Header';
+import { RunList } from './RunList';
+import { Sidebar } from './Sidebar';
+import { getVsCodeApi, subscribeToHostMessages } from './vscode';
 
-interface VsCodeApi {
-  postMessage: (message: unknown) => void;
-  getState: () => unknown;
-  setState: (state: unknown) => void;
+interface AppState {
+  selectedWorkflowPath?: string;
+  selectedRunId?: string;
+  statusFilter?: RunStatus | 'all';
+  eventFilter?: string;
+  query?: string;
 }
 
-declare function acquireVsCodeApi(): VsCodeApi;
-
 export function App(): React.ReactElement {
-  const [initialized, setInitialized] = useState(false);
+  const vscode = getVsCodeApi();
+  const savedState = (vscode.getState() as AppState) || {};
+
+  const [runs, setRuns] = useState<WorkflowRun[]>([]);
+  const [workflows, setWorkflows] = useState<ParsedWorkflow[]>([]);
+  const [selectedWorkflowPath, setSelectedWorkflowPath] = useState<string | undefined>(
+    savedState.selectedWorkflowPath
+  );
+  const [selectedRunId, setSelectedRunId] = useState<string | undefined>(savedState.selectedRunId);
+  const [statusFilter, setStatusFilter] = useState<RunStatus | 'all'>(
+    savedState.statusFilter || 'all'
+  );
+  const [eventFilter, setEventFilter] = useState<string>(savedState.eventFilter || 'all');
+  const [query, setQuery] = useState<string>(savedState.query || '');
 
   useEffect(() => {
-    try {
-      const vscode = acquireVsCodeApi();
-      vscode.postMessage({ type: 'ready' });
-    } catch {
-      setInitialized(true);
-    }
+    vscode.setState({
+      selectedWorkflowPath,
+      selectedRunId,
+      statusFilter,
+      eventFilter,
+      query
+    });
+  }, [selectedWorkflowPath, selectedRunId, statusFilter, eventFilter, query, vscode]);
 
-    const handleMessage = (event: MessageEvent): void => {
-      const data = event.data as Record<string, unknown> | undefined;
-      if (data?.type === 'init') {
-        setInitialized(true);
+  useEffect(() => {
+    const unsubscribe = subscribeToHostMessages((msg) => {
+      switch (msg.type) {
+        case 'init':
+          setRuns(msg.runs);
+          setWorkflows(msg.workflows);
+          break;
+
+        case 'runsUpdated':
+          setRuns(msg.runs);
+          break;
+
+        case 'runUpdated':
+          setRuns((prev) => {
+            const idx = prev.findIndex((r) => r.id === msg.run.id);
+            if (idx !== -1) {
+              const updated = [...prev];
+              updated[idx] = msg.run;
+              return updated;
+            }
+            return [msg.run, ...prev];
+          });
+          break;
+
+        case 'workflowsUpdated':
+          setWorkflows(msg.workflows);
+          break;
       }
-    };
+    });
 
-    window.addEventListener('message', handleMessage);
-    return () => {
-      window.removeEventListener('message', handleMessage);
-    };
-  }, []);
+    vscode.postMessage({ type: 'ready' });
+    return unsubscribe;
+  }, [vscode]);
+
+  const selectedWorkflow = useMemo(
+    () => workflows.find((w) => w.filePath === selectedWorkflowPath),
+    [workflows, selectedWorkflowPath]
+  );
+
+  const availableEvents = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of runs) {
+      if (r.event) {
+        set.add(r.event);
+      }
+    }
+    for (const w of workflows) {
+      for (const e of w.events) {
+        set.add(e);
+      }
+    }
+    return Array.from(set).sort();
+  }, [runs, workflows]);
+
+  const filteredRuns = useMemo(() => {
+    return runs.filter((run) => {
+      if (selectedWorkflowPath && run.workflowFilePath !== selectedWorkflowPath) {
+        return false;
+      }
+      if (statusFilter !== 'all' && run.status !== statusFilter) {
+        return false;
+      }
+      if (eventFilter !== 'all' && run.event !== eventFilter) {
+        return false;
+      }
+      if (query.trim().length > 0) {
+        const q = query.toLowerCase();
+        const matchTitle = run.workflowName.toLowerCase().includes(q);
+        const matchBranch = run.branch?.toLowerCase().includes(q) ?? false;
+        const matchSha = run.commitSha?.toLowerCase().includes(q) ?? false;
+        const matchId = run.id.toLowerCase().includes(q);
+        if (!matchTitle && !matchBranch && !matchSha && !matchId) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [runs, selectedWorkflowPath, statusFilter, eventFilter, query]);
+
+  const handleRunWorkflow = (workflowFilePath: string) => {
+    vscode.postMessage({ type: 'runWorkflow', workflowFilePath });
+  };
+
+  const handleCancelRun = (runId: string) => {
+    vscode.postMessage({ type: 'cancelRun', runId });
+  };
+
+  const handleDeleteRun = (runId: string) => {
+    vscode.postMessage({ type: 'deleteRun', runId });
+  };
+
+  const handleOpenFile = (filePath: string) => {
+    vscode.postMessage({ type: 'openWorkflowFile', filePath });
+  };
 
   return (
-    <div className="p-4" data-color-mode="auto" data-light-theme="light" data-dark-theme="dark">
-      <div className="Subhead">
-        <h2 className="Subhead-heading">Local Actions</h2>
-        <div className="Subhead-description">
-          {initialized ? 'Actions Page ready.' : 'Connecting to extension...'}
-        </div>
-      </div>
+    <div
+      className="d-flex flex-row width-full height-full"
+      style={{
+        height: '100vh',
+        backgroundColor: 'var(--color-canvas-default, #0d1117)',
+        color: 'var(--color-fg-default, #c9d1d9)',
+        overflow: 'hidden'
+      }}
+    >
+      <Sidebar
+        workflows={workflows}
+        runs={runs}
+        selectedWorkflowPath={selectedWorkflowPath}
+        onSelectWorkflow={(path) => {
+          setSelectedWorkflowPath(path);
+          setSelectedRunId(undefined);
+        }}
+      />
+
+      <main className="d-flex flex-column flex-1 min-width-0 height-full">
+        <Header
+          selectedWorkflow={selectedWorkflow}
+          workflows={workflows}
+          onRunWorkflow={handleRunWorkflow}
+          onOpenFile={handleOpenFile}
+        />
+
+        <FilterBar
+          query={query}
+          onQueryChange={setQuery}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          eventFilter={eventFilter}
+          onEventFilterChange={setEventFilter}
+          availableEvents={availableEvents}
+        />
+
+        <RunList
+          runs={filteredRuns}
+          selectedRunId={selectedRunId}
+          onSelectRun={(run) => setSelectedRunId(run.id)}
+          onCancelRun={handleCancelRun}
+          onDeleteRun={handleDeleteRun}
+        />
+      </main>
     </div>
   );
 }

@@ -1,14 +1,30 @@
 import * as crypto from 'node:crypto';
 import * as vscode from 'vscode';
-import { WebviewToHostMessage } from '../../shared/messages';
+import { RunStore } from '../../runs/store';
+import { WorkflowRun } from '../../runs/types';
+import { HostToWebviewMessage, WebviewToHostMessage } from '../../shared/messages';
+import { WorkflowDiscovery } from '../../workflows/discovery';
+
+export type RunWorkflowHandler = (workflowFilePath: string) => Promise<void>;
+export type CancelRunHandler = (runId: string) => Promise<void>;
 
 export class ActionsPanel {
   public static currentPanel: ActionsPanel | undefined;
   private readonly panel: vscode.WebviewPanel;
   private readonly extensionUri: vscode.Uri;
+  private readonly store: RunStore;
+  private readonly discovery: WorkflowDiscovery;
+  private readonly onRunWorkflow: RunWorkflowHandler;
+  private readonly onCancelRun: CancelRunHandler;
   private disposables: vscode.Disposable[] = [];
 
-  public static render(extensionUri: vscode.Uri): ActionsPanel {
+  public static render(
+    extensionUri: vscode.Uri,
+    store: RunStore,
+    discovery: WorkflowDiscovery,
+    onRunWorkflow: RunWorkflowHandler,
+    onCancelRun: CancelRunHandler
+  ): ActionsPanel {
     if (ActionsPanel.currentPanel) {
       ActionsPanel.currentPanel.panel.reveal(vscode.ViewColumn.One);
       return ActionsPanel.currentPanel;
@@ -25,15 +41,34 @@ export class ActionsPanel {
       }
     );
 
-    ActionsPanel.currentPanel = new ActionsPanel(panel, extensionUri);
+    ActionsPanel.currentPanel = new ActionsPanel(
+      panel,
+      extensionUri,
+      store,
+      discovery,
+      onRunWorkflow,
+      onCancelRun
+    );
     return ActionsPanel.currentPanel;
   }
 
-  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+  private constructor(
+    panel: vscode.WebviewPanel,
+    extensionUri: vscode.Uri,
+    store: RunStore,
+    discovery: WorkflowDiscovery,
+    onRunWorkflow: RunWorkflowHandler,
+    onCancelRun: CancelRunHandler
+  ) {
     this.panel = panel;
     this.extensionUri = extensionUri;
+    this.store = store;
+    this.discovery = discovery;
+    this.onRunWorkflow = onRunWorkflow;
+    this.onCancelRun = onCancelRun;
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+
     this.panel.webview.onDidReceiveMessage(
       (message: unknown) => {
         if (this.isValidMessage(message)) {
@@ -44,7 +79,43 @@ export class ActionsPanel {
       this.disposables
     );
 
+    const storeDispose = this.store.onDidChangeRuns(() => {
+      this.postMessage({
+        type: 'runsUpdated',
+        runs: this.store.getCachedRuns()
+      });
+    });
+    this.disposables.push(storeDispose);
+
+    const logDispose = this.store.onDidAppendLog((runId, line) => {
+      this.postMessage({
+        type: 'logAppended',
+        runId,
+        line
+      });
+    });
+    this.disposables.push(logDispose);
+
+    const wfDispose = this.discovery.onDidChangeWorkflows(() => {
+      this.postMessage({
+        type: 'workflowsUpdated',
+        workflows: this.discovery.getWorkflows()
+      });
+    });
+    this.disposables.push({ dispose: () => wfDispose.dispose() });
+
     this.panel.webview.html = this.getHtmlForWebview(this.panel.webview);
+  }
+
+  public postRunUpdated(run: WorkflowRun): void {
+    this.postMessage({
+      type: 'runUpdated',
+      run
+    });
+  }
+
+  public postMessage(message: HostToWebviewMessage): void {
+    this.panel.webview.postMessage(message);
   }
 
   private isValidMessage(message: unknown): message is WebviewToHostMessage {
@@ -52,12 +123,47 @@ export class ActionsPanel {
       return false;
     }
     const candidate = message as Record<string, unknown>;
-    return candidate.type === 'ready';
+    const validTypes = ['ready', 'runWorkflow', 'cancelRun', 'deleteRun', 'openWorkflowFile', 'requestLog'];
+    return typeof candidate.type === 'string' && validTypes.includes(candidate.type);
   }
 
-  private handleMessage(message: WebviewToHostMessage): void {
-    if (message.type === 'ready') {
-      this.panel.webview.postMessage({ type: 'init' });
+  private async handleMessage(message: WebviewToHostMessage): Promise<void> {
+    switch (message.type) {
+      case 'ready':
+        this.postMessage({
+          type: 'init',
+          runs: await this.store.getRuns(),
+          workflows: this.discovery.getWorkflows()
+        });
+        break;
+
+      case 'runWorkflow':
+        await this.onRunWorkflow(message.workflowFilePath);
+        break;
+
+      case 'cancelRun':
+        await this.onCancelRun(message.runId);
+        break;
+
+      case 'deleteRun':
+        await this.store.deleteRun(message.runId);
+        break;
+
+      case 'openWorkflowFile': {
+        const doc = await vscode.workspace.openTextDocument(message.filePath);
+        await vscode.window.showTextDocument(doc);
+        break;
+      }
+
+      case 'requestLog': {
+        const log = await this.store.getLog(message.runId);
+        this.postMessage({
+          type: 'logChunk',
+          runId: message.runId,
+          log
+        });
+        break;
+      }
     }
   }
 
@@ -87,7 +193,7 @@ export class ActionsPanel {
   <link rel="stylesheet" href="${stylesUri}">
   <title>Local Actions</title>
 </head>
-<body>
+<body style="padding: 0; margin: 0; background-color: var(--color-canvas-default, #0d1117); color: var(--color-fg-default, #c9d1d9);">
   <div id="root"></div>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
