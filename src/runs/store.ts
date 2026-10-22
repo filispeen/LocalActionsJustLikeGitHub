@@ -8,6 +8,8 @@ export class RunStore {
   private readonly indexPath: string;
   private cachedRuns: WorkflowRun[] = [];
   private isLoaded = false;
+  private writeQueue: Promise<void> = Promise.resolve();
+  private appendQueue: Promise<void> = Promise.resolve();
 
   private readonly listeners: Array<() => void> = [];
   private readonly logListeners: Array<(runId: string, line: string) => void> = [];
@@ -98,17 +100,13 @@ export class RunStore {
         const logFile = path.join(this.runsDir, `${item.id}.log`);
         try {
           await fs.unlink(logFile);
-        } catch {
-          // Ignore removal errors
+        } catch (err) {
+          void err;
         }
       }
     }
 
-    const indexContent: RunStoreIndex = {
-      version: 1,
-      runs: this.cachedRuns
-    };
-    await fs.writeFile(this.indexPath, JSON.stringify(indexContent, null, 2), 'utf8');
+    await this.queueWriteIndex();
     this.notifyChange();
   }
 
@@ -119,8 +117,48 @@ export class RunStore {
 
     const cleanLine = redactSecrets(line, secrets);
     const logFile = path.join(this.runsDir, `${runId}.log`);
-    await fs.appendFile(logFile, cleanLine + '\n', 'utf8');
+    this.appendQueue = this.appendQueue
+      .then(async () => {
+        await fs.appendFile(logFile, cleanLine + '\n', 'utf8');
+      })
+      .catch(() => {});
+    await this.appendQueue;
     this.notifyLog(runId, cleanLine);
+  }
+
+  public async flush(): Promise<void> {
+    await this.appendQueue;
+    await this.writeQueue;
+  }
+
+  private async writeIndexAtomic(): Promise<void> {
+    const indexContent: RunStoreIndex = {
+      version: 1,
+      runs: this.cachedRuns
+    };
+    const content = JSON.stringify(indexContent, null, 2);
+    const tempPath = path.join(
+      this.runsDir,
+      `index.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`
+    );
+    try {
+      await fs.writeFile(tempPath, content, 'utf8');
+      await fs.rename(tempPath, this.indexPath);
+    } catch {
+      await fs.writeFile(this.indexPath, content, 'utf8');
+      try {
+        await fs.unlink(tempPath);
+      } catch (err) {
+        void err;
+      }
+    }
+  }
+
+  private queueWriteIndex(): Promise<void> {
+    this.writeQueue = this.writeQueue
+      .then(() => this.writeIndexAtomic())
+      .catch(() => {});
+    return this.writeQueue;
   }
 
   public async getLog(runId: string): Promise<string> {
@@ -145,15 +183,11 @@ export class RunStore {
     const logFile = path.join(this.runsDir, `${runId}.log`);
     try {
       await fs.unlink(logFile);
-    } catch {
-      // Ignore removal errors
+    } catch (err) {
+      void err;
     }
 
-    const indexContent: RunStoreIndex = {
-      version: 1,
-      runs: this.cachedRuns
-    };
-    await fs.writeFile(this.indexPath, JSON.stringify(indexContent, null, 2), 'utf8');
+    await this.queueWriteIndex();
     this.notifyChange();
   }
 
@@ -166,12 +200,12 @@ export class RunStore {
       const logFile = path.join(this.runsDir, `${run.id}.log`);
       try {
         await fs.unlink(logFile);
-      } catch {
-        // Ignore removal errors
+      } catch (err) {
+        void err;
       }
     }
     this.cachedRuns = [];
-    await fs.writeFile(this.indexPath, JSON.stringify({ version: 1, runs: [] }, null, 2), 'utf8');
+    await this.queueWriteIndex();
     this.notifyChange();
   }
 }

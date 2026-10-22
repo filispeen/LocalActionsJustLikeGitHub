@@ -35,6 +35,9 @@ export interface WorkflowRun {
   branch?: string;
   commitSha?: string;
   errorMessage?: string;
+  inputs?: Record<string, string>;
+  useHostRunner?: boolean;
+  platformOverride?: string;
 }
 
 export interface RunStoreIndex {

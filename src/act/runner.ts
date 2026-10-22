@@ -2,7 +2,7 @@ import { ChildProcess, spawn } from 'node:child_process';
 import { RunStore } from '../runs/store';
 import { WorkflowRun } from '../runs/types';
 import { ActRunOptions, buildActArgv } from './argv';
-import { parseActJsonLine, parseActTextLine, redactSecrets } from './parser';
+import { parseActJsonLine, parseActTextLine } from './parser';
 import { killProcessTree } from './processTree';
 
 export interface RunnerEvents {
@@ -14,6 +14,7 @@ export interface RunnerEvents {
 export class ActRunner {
   private child: ChildProcess | undefined;
   private isCancelled = false;
+  private processingChain: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly actPath: string,
@@ -22,19 +23,29 @@ export class ActRunner {
     private readonly options: ActRunOptions,
     private readonly secretsToRedact: string[],
     private readonly store: RunStore,
-    private readonly events: RunnerEvents = {}
+    private readonly events: RunnerEvents = {},
+    private readonly retentionLimit = 50
   ) {}
 
   public async start(): Promise<WorkflowRun> {
     const argv = buildActArgv(this.options);
     this.run.status = 'in_progress';
     this.run.startedAt = new Date().toISOString();
-    await this.store.saveRun(this.run);
+    await this.store.saveRun(this.run, this.retentionLimit);
     this.events.onDidUpdateRun?.(this.run);
 
     return new Promise<WorkflowRun>((resolve) => {
       let stdoutBuffer = '';
       let stderrBuffer = '';
+
+      const secretsEnv: Record<string, string> = {};
+      if (this.options.secrets) {
+        for (const [key, value] of Object.entries(this.options.secrets)) {
+          if (key.trim().length > 0) {
+            secretsEnv[key.trim()] = value;
+          }
+        }
+      }
 
       const child = spawn(this.actPath, argv, {
         cwd: this.cwd,
@@ -42,7 +53,8 @@ export class ActRunner {
         detached: process.platform !== 'win32',
         env: {
           ...process.env,
-          CI: 'true'
+          CI: 'true',
+          ...secretsEnv
         }
       });
       this.child = child;
@@ -56,9 +68,31 @@ export class ActRunner {
         const parsed = isJson ? parseActJsonLine(line) : undefined;
         const event = parsed ?? parseActTextLine(line);
 
-        const cleanMsg = redactSecrets(event.message ?? line, this.secretsToRedact);
-        await this.store.appendLog(this.run.id, cleanMsg, this.secretsToRedact);
-        this.events.onDidAppendLog?.(this.run.id, cleanMsg);
+        let logLine = event.message ?? line;
+        if (isJson) {
+          const jobPrefix = event.jobName ?? event.jobId ?? 'job';
+          if (event.type === 'step_start') {
+            if (!logLine.includes('⭐ Run ')) {
+              logLine = `[${jobPrefix}] ⭐ Run ${event.stepName ?? ''}`;
+            } else if (!logLine.startsWith('[')) {
+              logLine = `[${jobPrefix}] ${logLine}`;
+            }
+          } else if (event.type === 'step_finish') {
+            const icon = event.status === 'success' ? '✅  Success - ' : '❌  Failure - ';
+            const dur = event.durationMs !== undefined ? ` [${event.durationMs}ms]` : '';
+            logLine = `[${jobPrefix}]   ${icon}${event.stepName ?? ''}${dur}`;
+          } else if (event.type === 'job_finish') {
+            const statusMsg = event.status === 'success' ? '🏁  Job succeeded' : '🏁  Job failed';
+            logLine = `[${jobPrefix}]   ${statusMsg}`;
+          } else if (event.type === 'log_line') {
+            if (!logLine.startsWith('[')) {
+              logLine = `[${jobPrefix}]   | ${logLine}`;
+            }
+          }
+        }
+
+        await this.store.appendLog(this.run.id, logLine, this.secretsToRedact);
+        this.events.onDidAppendLog?.(this.run.id, logLine);
 
         if (event.jobId || event.jobName) {
           let job = this.run.jobs.find((j) => j.id === event.jobId || j.name === event.jobName);
@@ -106,8 +140,10 @@ export class ActRunner {
           }
         }
 
-        await this.store.saveRun(this.run);
-        this.events.onDidUpdateRun?.(this.run);
+        if (event.type !== 'log_line') {
+          await this.store.saveRun(this.run, this.retentionLimit);
+          this.events.onDidUpdateRun?.(this.run);
+        }
       };
 
       child.stdout.on('data', (chunk: Buffer) => {
@@ -115,7 +151,9 @@ export class ActRunner {
         const lines = stdoutBuffer.split(/\r?\n/);
         stdoutBuffer = lines.pop() ?? '';
         for (const line of lines) {
-          processLine(line);
+          this.processingChain = this.processingChain
+            .then(() => processLine(line))
+            .catch(() => {});
         }
       });
 
@@ -124,7 +162,9 @@ export class ActRunner {
         const lines = stderrBuffer.split(/\r?\n/);
         stderrBuffer = lines.pop() ?? '';
         for (const line of lines) {
-          processLine(line);
+          this.processingChain = this.processingChain
+            .then(() => processLine(line))
+            .catch(() => {});
         }
       });
 
@@ -132,18 +172,25 @@ export class ActRunner {
         if (this.isCancelled) {
           return;
         }
+        await this.processingChain;
         this.run.status = 'failure';
         this.run.errorMessage = err.message;
-        this.finishRun(resolve);
+        await this.finishRun(resolve);
       });
 
       child.on('close', async (code) => {
         if (stdoutBuffer.trim().length > 0) {
-          await processLine(stdoutBuffer);
+          this.processingChain = this.processingChain
+            .then(() => processLine(stdoutBuffer))
+            .catch(() => {});
         }
         if (stderrBuffer.trim().length > 0) {
-          await processLine(stderrBuffer);
+          this.processingChain = this.processingChain
+            .then(() => processLine(stderrBuffer))
+            .catch(() => {});
         }
+
+        await this.processingChain;
 
         if (this.isCancelled) {
           this.run.status = 'cancelled';
@@ -167,7 +214,8 @@ export class ActRunner {
     const endMs = new Date(this.run.completedAt).getTime();
     this.run.durationMs = Math.max(0, endMs - startMs);
 
-    await this.store.saveRun(this.run);
+    await this.store.saveRun(this.run, this.retentionLimit);
+    await this.store.flush();
     this.events.onDidUpdateRun?.(this.run);
     this.events.onDidFinishRun?.(this.run);
     resolve(this.run);
