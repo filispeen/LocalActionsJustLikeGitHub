@@ -6,6 +6,8 @@ import { ActionsPanel } from './webview/host/ActionsPanel';
 import { ComponentsViewProvider } from './views/ComponentsView';
 import { WorkflowDiscovery } from './workflows/discovery';
 import { WorkflowFileTreeItem, WorkflowJobTreeItem, WorkflowsViewProvider } from './views/WorkflowsView';
+import { SettingsLeafItem, SettingsViewProvider } from './views/SettingsView';
+import { SecretsManager } from './settings/secrets';
 import { RunStore } from './runs/store';
 import { ActRunner } from './act/runner';
 import { WorkflowRun } from './runs/types';
@@ -15,12 +17,17 @@ export function activate(context: vscode.ExtensionContext): void {
   const store = new RunStore(context.globalStorageUri.fsPath);
   store.init();
 
+  const secretsManager = new SecretsManager(context.secrets, context.workspaceState);
+
   const componentsProvider = new ComponentsViewProvider();
   vscode.window.registerTreeDataProvider('localActions.componentsView', componentsProvider);
 
   const discovery = new WorkflowDiscovery();
   const workflowsProvider = new WorkflowsViewProvider(discovery);
   vscode.window.registerTreeDataProvider('localActions.workflowsView', workflowsProvider);
+
+  const settingsProvider = new SettingsViewProvider(secretsManager);
+  vscode.window.registerTreeDataProvider('localActions.settingsView', settingsProvider);
 
   const activeRunners = new Map<string, ActRunner>();
 
@@ -32,12 +39,45 @@ export function activate(context: vscode.ExtensionContext): void {
     const workflow = discovery.getWorkflows().find((w) => w.filePath === payload.workflowFilePath);
     const workflowName = workflow?.name ?? payload.workflowFilePath.split(/[/\\]/).pop() ?? 'Workflow';
 
+    const secrets = await secretsManager.getAllSecrets();
+    const secretsToRedact = Object.values(secrets).filter((s) => s.length >= 3);
+
+    const configuredVariables = config.get<Record<string, string>>('variables') || {};
+    const configuredInputs = config.get<Record<string, string>>('defaultInputs') || {};
+    const configuredRunners = config.get<Record<string, string>>('runners') || {};
+    const configuredUseHost = config.get<boolean>('useHostRunner', true);
+    const noCache = config.get<boolean>('noCacheServer', false);
+    const artifactPath = config.get<string>('artifactServerPath', '');
+    const retentionLimit = config.get<number>('historyRetention', 50);
+    const extraArgs = [...(config.get<string[]>('extraArgs') || [])];
+
+    if (noCache) {
+      extraArgs.push('--no-cache-server');
+    }
+    if (artifactPath.trim().length > 0) {
+      extraArgs.push('--artifact-server-path', artifactPath.trim());
+    }
+
     let eventPayloadPath: string | undefined;
     if (payload.payloadJson && payload.payloadJson.trim().length > 0) {
       const tempPath = path.join(os.tmpdir(), `act-payload-${Date.now()}.json`);
       await fs.writeFile(tempPath, payload.payloadJson, 'utf8');
       eventPayloadPath = tempPath;
     }
+
+    const mergedInputs = {
+      ...configuredInputs,
+      ...(payload.inputs || {})
+    };
+
+    const platforms = {
+      ...configuredRunners
+    };
+    if (payload.platformOverride && payload.platformOverride.trim().length > 0) {
+      platforms['ubuntu-latest'] = payload.platformOverride.trim();
+    }
+
+    const useHostRunner = payload.useHostRunner !== undefined ? payload.useHostRunner : configuredUseHost;
 
     const runId = `run-${Date.now()}`;
     const run: WorkflowRun = {
@@ -57,11 +97,6 @@ export function activate(context: vscode.ExtensionContext): void {
       })) ?? []
     };
 
-    const platforms: Record<string, string> = {};
-    if (payload.platformOverride && payload.platformOverride.trim().length > 0) {
-      platforms['ubuntu-latest'] = payload.platformOverride.trim();
-    }
-
     const runner = new ActRunner(
       actPath,
       workspaceFolder,
@@ -71,15 +106,19 @@ export function activate(context: vscode.ExtensionContext): void {
         jobId: payload.jobId,
         event: payload.event,
         eventPayloadPath,
-        inputs: payload.inputs,
+        secrets,
+        variables: configuredVariables,
+        inputs: Object.keys(mergedInputs).length > 0 ? mergedInputs : undefined,
         platforms: Object.keys(platforms).length > 0 ? platforms : undefined,
-        useHostRunner: payload.useHostRunner !== false,
+        useHostRunner,
+        extraArgs: extraArgs.length > 0 ? extraArgs : undefined,
         jsonOutput: true
       },
-      [],
+      secretsToRedact,
       store,
       {
         onDidUpdateRun: (updated) => {
+          store.saveRun(updated, retentionLimit);
           ActionsPanel.currentPanel?.postRunUpdated(updated);
         }
       }
@@ -149,6 +188,76 @@ export function activate(context: vscode.ExtensionContext): void {
       return workflowsProvider.refresh();
     }),
 
+    vscode.commands.registerCommand('localActions.refreshSettings', () => {
+      settingsProvider.refresh();
+    }),
+
+    vscode.commands.registerCommand('localActions.addSecret', async () => {
+      const key = await vscode.window.showInputBox({
+        title: 'Add Secret',
+        prompt: 'Enter secret name (e.g. GITHUB_TOKEN)'
+      });
+      if (!key || !key.trim()) {
+        return;
+      }
+      const val = await vscode.window.showInputBox({
+        title: `Enter value for ${key.trim()}`,
+        password: true
+      });
+      if (val === undefined) {
+        return;
+      }
+      await secretsManager.setSecret(key.trim(), val);
+      vscode.window.showInformationMessage(`Secret ${key.trim()} saved securely.`);
+    }),
+
+    vscode.commands.registerCommand('localActions.deleteSecret', async (item?: SettingsLeafItem) => {
+      let key = item?.keyName;
+      if (!key) {
+        const keys = secretsManager.getSecretKeys();
+        key = await vscode.window.showQuickPick(keys, { title: 'Select secret to delete' });
+      }
+      if (key) {
+        await secretsManager.deleteSecret(key);
+        vscode.window.showInformationMessage(`Secret ${key} deleted.`);
+      }
+    }),
+
+    vscode.commands.registerCommand('localActions.addVariable', async () => {
+      const key = await vscode.window.showInputBox({
+        title: 'Add Variable',
+        prompt: 'Enter variable name (e.g. ENVIRONMENT)'
+      });
+      if (!key || !key.trim()) {
+        return;
+      }
+      const val = await vscode.window.showInputBox({
+        title: `Enter value for ${key.trim()}`
+      });
+      if (val === undefined) {
+        return;
+      }
+      const config = vscode.workspace.getConfiguration('localActions');
+      const vars = { ...(config.get<Record<string, string>>('variables') || {}) };
+      vars[key.trim()] = val;
+      await config.update('variables', vars, vscode.ConfigurationTarget.Workspace);
+      settingsProvider.refresh();
+    }),
+
+    vscode.commands.registerCommand('localActions.deleteVariable', async (item?: SettingsLeafItem) => {
+      const config = vscode.workspace.getConfiguration('localActions');
+      const vars = { ...(config.get<Record<string, string>>('variables') || {}) };
+      let key = item?.keyName;
+      if (!key) {
+        key = await vscode.window.showQuickPick(Object.keys(vars), { title: 'Select variable to delete' });
+      }
+      if (key && vars[key] !== undefined) {
+        delete vars[key];
+        await config.update('variables', vars, vscode.ConfigurationTarget.Workspace);
+        settingsProvider.refresh();
+      }
+    }),
+
     vscode.commands.registerCommand('localActions.openWorkflowFile', async (item?: WorkflowFileTreeItem | WorkflowJobTreeItem) => {
       const filePath = item?.workflow.filePath;
       if (filePath) {
@@ -216,8 +325,9 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
 
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration('localActions.actPath')) {
+      if (event.affectsConfiguration('localActions')) {
         componentsProvider.refresh();
+        settingsProvider.refresh();
       }
     })
   );

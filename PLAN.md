@@ -107,10 +107,10 @@ Done when: all run modes from the reference feature list work (all workflows, on
 
 ## Phase 7: Settings
 
-- [ ] Secrets via SecretStorage
-- [ ] Variables, inputs, runners (including host system runner), payloads, options (cache, artifacts, containers)
-- [ ] Persist per workspace, wire into the runner
-- [ ] Redaction verified by test
+- [x] Secrets via SecretStorage
+- [x] Variables, inputs, runners (including host system runner), payloads, options (cache, artifacts, containers)
+- [x] Persist per workspace, wire into the runner
+- [x] Redaction verified by test
 
 Done when: settings change the executed act command as expected.
 

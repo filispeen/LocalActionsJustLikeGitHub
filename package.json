@@ -33,6 +33,10 @@
         {
           "id": "localActions.workflowsView",
           "name": "Workflows"
+        },
+        {
+          "id": "localActions.settingsView",
+          "name": "Settings"
         }
       ]
     },
@@ -87,6 +91,36 @@
         "title": "Run with Inputs...",
         "category": "Local Actions",
         "icon": "$(gear)"
+      },
+      {
+        "command": "localActions.refreshSettings",
+        "title": "Refresh Settings",
+        "category": "Local Actions",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "localActions.addSecret",
+        "title": "Add Secret",
+        "category": "Local Actions",
+        "icon": "$(plus)"
+      },
+      {
+        "command": "localActions.deleteSecret",
+        "title": "Delete Secret",
+        "category": "Local Actions",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "localActions.addVariable",
+        "title": "Add Variable",
+        "category": "Local Actions",
+        "icon": "$(plus)"
+      },
+      {
+        "command": "localActions.deleteVariable",
+        "title": "Delete Variable",
+        "category": "Local Actions",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -99,6 +133,11 @@
         {
           "command": "localActions.refreshWorkflows",
           "when": "view == localActions.workflowsView",
+          "group": "navigation"
+        },
+        {
+          "command": "localActions.refreshSettings",
+          "when": "view == localActions.settingsView",
           "group": "navigation"
         }
       ],
@@ -122,6 +161,26 @@
           "command": "localActions.runJob",
           "when": "view == localActions.workflowsView && viewItem == jobItem",
           "group": "inline"
+        },
+        {
+          "command": "localActions.addSecret",
+          "when": "view == localActions.settingsView && viewItem == category_secrets",
+          "group": "inline"
+        },
+        {
+          "command": "localActions.deleteSecret",
+          "when": "view == localActions.settingsView && viewItem == leaf_secret",
+          "group": "inline"
+        },
+        {
+          "command": "localActions.addVariable",
+          "when": "view == localActions.settingsView && viewItem == category_variables",
+          "group": "inline"
+        },
+        {
+          "command": "localActions.deleteVariable",
+          "when": "view == localActions.settingsView && viewItem == leaf_variable",
+          "group": "inline"
         }
       ]
     },
@@ -132,6 +191,49 @@
           "type": "string",
           "default": "act",
           "description": "Path to the act executable"
+        },
+        "localActions.useHostRunner": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run workflows directly on the host system without requiring Docker"
+        },
+        "localActions.historyRetention": {
+          "type": "number",
+          "default": 50,
+          "description": "Maximum number of workflow runs to retain in local storage"
+        },
+        "localActions.variables": {
+          "type": "object",
+          "default": {},
+          "description": "Environment variables made available to local workflow runs"
+        },
+        "localActions.defaultInputs": {
+          "type": "object",
+          "default": {},
+          "description": "Default workflow inputs passed to local workflow runs"
+        },
+        "localActions.runners": {
+          "type": "object",
+          "default": {},
+          "description": "Custom runner platform mappings (e.g. ubuntu-latest: catthehacker/ubuntu:act-latest)"
+        },
+        "localActions.noCacheServer": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disable the local action cache server"
+        },
+        "localActions.artifactServerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path where the local artifact server stores uploads and downloads"
+        },
+        "localActions.extraArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Extra command line arguments passed directly to act"
         }
       }
     }
