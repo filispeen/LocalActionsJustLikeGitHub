@@ -13,11 +13,14 @@ import { ActRunner } from './act/runner';
 import { WorkflowRun } from './runs/types';
 import { RunWorkflowPayload } from './shared/messages';
 
-export function activate(context: vscode.ExtensionContext): void {
-  const store = new RunStore(context.globalStorageUri.fsPath);
-  store.init();
+const activeRunners = new Map<string, ActRunner>();
 
-  const secretsManager = new SecretsManager(context.secrets, context.workspaceState);
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  const store = new RunStore(context.globalStorageUri.fsPath);
+  await store.init();
+
+  const workspaceFolderUri = vscode.workspace.workspaceFolders?.[0]?.uri.toString() ?? 'global';
+  const secretsManager = new SecretsManager(context.secrets, context.workspaceState, workspaceFolderUri);
 
   const componentsProvider = new ComponentsViewProvider();
   vscode.window.registerTreeDataProvider('localActions.componentsView', componentsProvider);
@@ -28,8 +31,6 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const settingsProvider = new SettingsViewProvider(secretsManager);
   vscode.window.registerTreeDataProvider('localActions.settingsView', settingsProvider);
-
-  const activeRunners = new Map<string, ActRunner>();
 
   const executeRun = async (payload: RunWorkflowPayload): Promise<WorkflowRun | undefined> => {
     const config = vscode.workspace.getConfiguration('localActions');
@@ -74,10 +75,44 @@ export function activate(context: vscode.ExtensionContext): void {
       ...configuredRunners
     };
     if (payload.platformOverride && payload.platformOverride.trim().length > 0) {
-      platforms['ubuntu-latest'] = payload.platformOverride.trim();
+      const override = payload.platformOverride.trim();
+      platforms['ubuntu-latest'] = override;
+      if (workflow) {
+        for (const job of workflow.jobs) {
+          if (typeof job.runsOn === 'string' && job.runsOn.trim()) {
+            platforms[job.runsOn.trim()] = override;
+          } else if (Array.isArray(job.runsOn)) {
+            for (const r of job.runsOn) {
+              if (typeof r === 'string' && r.trim()) {
+                platforms[r.trim()] = override;
+              }
+            }
+          }
+        }
+      }
     }
 
     const useHostRunner = payload.useHostRunner !== undefined ? payload.useHostRunner : configuredUseHost;
+
+    if (useHostRunner && workflow) {
+      for (const job of workflow.jobs) {
+        if (typeof job.runsOn === 'string' && job.runsOn.trim()) {
+          const key = job.runsOn.trim();
+          if (!platforms[key]) {
+            platforms[key] = '-self-hosted';
+          }
+        } else if (Array.isArray(job.runsOn)) {
+          for (const r of job.runsOn) {
+            if (typeof r === 'string' && r.trim()) {
+              const key = r.trim();
+              if (!platforms[key]) {
+                platforms[key] = '-self-hosted';
+              }
+            }
+          }
+        }
+      }
+    }
 
     const runId = `run-${Date.now()}`;
     const run: WorkflowRun = {
@@ -88,6 +123,9 @@ export function activate(context: vscode.ExtensionContext): void {
       status: 'queued',
       startedAt: new Date().toISOString(),
       trigger: payload.event || 'manual',
+      inputs: payload.inputs,
+      useHostRunner,
+      platformOverride: payload.platformOverride,
       jobs: workflow?.jobs.map((j) => ({
         id: j.id,
         name: j.name,
@@ -118,10 +156,10 @@ export function activate(context: vscode.ExtensionContext): void {
       store,
       {
         onDidUpdateRun: (updated) => {
-          store.saveRun(updated, retentionLimit);
           ActionsPanel.currentPanel?.postRunUpdated(updated);
         }
-      }
+      },
+      retentionLimit
     );
 
     activeRunners.set(runId, runner);
@@ -332,10 +370,15 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
-  discovery.scan();
+  await discovery.scan();
 }
 
 export function deactivate(): void {
+  for (const runner of activeRunners.values()) {
+    runner.cancel();
+  }
+  activeRunners.clear();
+
   if (ActionsPanel.currentPanel) {
     ActionsPanel.currentPanel.dispose();
   }

@@ -1,5 +1,7 @@
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { RunStore } from '../../runs/store';
 import { WorkflowRun } from '../../runs/types';
@@ -18,6 +20,8 @@ export class ActionsPanel {
   private readonly onRunWorkflow: RunWorkflowHandler;
   private readonly onCancelRun: CancelRunHandler;
   private disposables: vscode.Disposable[] = [];
+  private isWebviewReady = false;
+  private pendingDialog?: { workflowFilePath?: string; jobId?: string };
 
   public static render(
     extensionUri: vscode.Uri,
@@ -109,6 +113,10 @@ export class ActionsPanel {
   }
 
   public openRunDialog(workflowFilePath?: string, jobId?: string): void {
+    if (!this.isWebviewReady) {
+      this.pendingDialog = { workflowFilePath, jobId };
+      return;
+    }
     this.postMessage({
       type: 'openRunDialog',
       workflowFilePath,
@@ -149,11 +157,17 @@ export class ActionsPanel {
   private async handleMessage(message: WebviewToHostMessage): Promise<void> {
     switch (message.type) {
       case 'ready':
+        this.isWebviewReady = true;
         this.postMessage({
           type: 'init',
           runs: await this.store.getRuns(),
           workflows: this.discovery.getWorkflows()
         });
+        if (this.pendingDialog) {
+          const { workflowFilePath, jobId } = this.pendingDialog;
+          this.pendingDialog = undefined;
+          this.openRunDialog(workflowFilePath, jobId);
+        }
         break;
 
       case 'runWorkflow':
@@ -173,7 +187,10 @@ export class ActionsPanel {
         if (run) {
           await this.onRunWorkflow({
             workflowFilePath: run.workflowFilePath,
-            event: run.event
+            event: run.event,
+            inputs: run.inputs,
+            useHostRunner: run.useHostRunner,
+            platformOverride: run.platformOverride
           });
         }
         break;
@@ -182,12 +199,15 @@ export class ActionsPanel {
       case 'rerunFailedJobs': {
         const run = this.store.getRun(message.runId);
         if (run) {
-          const failedJob = run.jobs.find((j) => j.status === 'failure');
-          if (failedJob) {
+          const failedJobs = run.jobs.filter((j) => j.status === 'failure');
+          for (const failedJob of failedJobs) {
             await this.onRunWorkflow({
               workflowFilePath: run.workflowFilePath,
               jobId: failedJob.id,
-              event: run.event
+              event: run.event,
+              inputs: run.inputs,
+              useHostRunner: run.useHostRunner,
+              platformOverride: run.platformOverride
             });
           }
         }
@@ -196,8 +216,9 @@ export class ActionsPanel {
 
       case 'saveLogsToFile': {
         const logContent = await this.store.getLog(message.runId);
+        const baseDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? os.homedir();
         const targetUri = await vscode.window.showSaveDialog({
-          defaultUri: vscode.Uri.file(`run-${message.runId}.log`),
+          defaultUri: vscode.Uri.file(path.join(baseDir, `${message.runId}.log`)),
           filters: { 'Log files': ['log', 'txt'] }
         });
         if (targetUri) {
