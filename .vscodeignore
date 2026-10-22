@@ -1,0 +1,15 @@
+.vscode/**
+.gitignore
+.vscodeignore
+reference/**
+src/**
+test/**
+tsconfig*.json
+eslint.config.mjs
+esbuild.config.mjs
+BUILD.md
+PLAN.md
+PROMPT.md
+AGENTS.md
+vstest/**
+**/*.map

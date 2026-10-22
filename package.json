@@ -2,5 +2,54 @@
   "name": "local-actions-just-like-github",
   "displayName": "Local Actions, Just Like GitHub",
   "description": "Run GitHub Actions workflows locally with a familiar GitHub Actions-style UI",
-  "publisher": "filispeen"
+  "version": "0.1.0",
+  "publisher": "filispeen",
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Testing",
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "localActions.openActionsPage",
+        "title": "Open Actions Page",
+        "category": "Local Actions"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "test:integration": "node test/integration/runTest.mjs",
+    "package": "vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "@primer/css": "^21.5.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.19",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@types/vscode": "^1.90.0",
+    "@typescript-eslint/eslint-plugin": "^8.24.1",
+    "@typescript-eslint/parser": "^8.24.1",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.20.1",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.1",
+    "vitest": "^3.0.6"
+  }
 }

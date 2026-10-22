@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Node.js (current LTS) and npm
+- Node.js (current LTS <v24.22.1>) and npm
 - Git
 - VS Code (version matching engines.vscode in package.json)
 - nektos/act CLI for manual testing: https://github.com/nektos/act

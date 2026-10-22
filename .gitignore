@@ -1,5 +1,6 @@
-.*/
-.*
-!.git*
-!.git*/
+node_modules/
+dist/
+out/
+*.vsix
 reference/
+.DS_Store
