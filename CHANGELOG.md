@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## v0.2.1
+
+- Style RunDialog with native GitHub Actions modal and form classes (`gh-dialog`, `gh-field`, `gh-textarea`).
+- Remove redundant Primer CSS bundle dependency in webview index.
+- Enable code minification in esbuild configuration for production builds.
+- Exclude zip and vsix archive files from packaged extension distribution.
+- Reduce extension VSIX distribution size by more than 50% down to 113 KB.
+
 ## v0.2.0
 
 - Redesign Actions page with authentic GitHub Actions styles and layout.
