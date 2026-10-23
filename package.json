@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/filispeen/LocalActionsJustLikeGitHub.git"
+    "url": "https://github.com/filispeen/LocalActionsJustLikeInGitHub.git"
   },
   "icon": "resources/icon.png",
   "engines": {
