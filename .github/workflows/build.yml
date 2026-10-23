@@ -22,6 +22,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Set extension version from tag
+        run: node scripts/set-version.cjs "${{ github.ref_name }}"
+
       - name: Cache node_modules
         id: cache-node-modules
         uses: actions/cache@v4

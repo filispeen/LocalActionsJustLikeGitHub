@@ -2,7 +2,7 @@
   "name": "local-actions-just-like-in-github",
   "displayName": "Local Actions, Just Like In GitHub",
   "description": "Run GitHub Actions workflows locally with a familiar GitHub Actions-style UI",
-  "version": "0.2.2",
+  "version": "REPLACE_ME",
   "publisher": "filispeen",
   "license": "Apache-2.0",
   "repository": {
