@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ActRunner } from '../../src/act/runner';
+import { detectAct } from '../../src/act/detection';
 import { RunStore } from '../../src/runs/store';
 import { WorkflowRun } from '../../src/runs/types';
 
@@ -24,8 +25,13 @@ describe('ActRunner with real execution', () => {
     }
   });
 
-  it('executes a workflow locally and records job and step statuses', async () => {
+  it('executes a workflow locally and records job and step statuses', async (ctx) => {
     const actPath = process.env.ACT_PATH ?? 'act';
+    const actStatus = await detectAct(actPath);
+    if (!actStatus.installed) {
+      ctx.skip();
+      return;
+    }
     const cwd = process.cwd();
     const workflowPath = path.join(cwd, 'test', 'fixtures', 'workflows', 'host.yml');
 
