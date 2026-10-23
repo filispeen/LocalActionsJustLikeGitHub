@@ -1,6 +1,6 @@
 {
-  "name": "local-actions-just-like-github",
-  "displayName": "Local Actions, Just Like GitHub",
+  "name": "local-actions-just-like-in-github",
+  "displayName": "Local Actions, Just Like In GitHub",
   "description": "Run GitHub Actions workflows locally with a familiar GitHub Actions-style UI",
   "version": "0.2.2",
   "publisher": "filispeen",

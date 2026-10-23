@@ -1,4 +1,4 @@
-Build a VS Code extension named "Local Actions, Just Like GitHub".
+Build a VS Code extension named "Local Actions, Just Like In GitHub".
 
 It runs GitHub Actions workflows locally through the nektos/act CLI and shows runs in a dedicated page that looks and behaves like the GitHub Actions tab: workflow sidebar, run list, run summary with job graph, per-job steps with collapsible logs.
 

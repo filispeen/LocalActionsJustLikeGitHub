@@ -2,8 +2,8 @@ const assert = require('node:assert');
 const vscode = require('vscode');
 
 async function run() {
-  const extension = vscode.extensions.getExtension('filispeen.local-actions-just-like-github');
-  assert.ok(extension, 'Extension filispeen.local-actions-just-like-github should be found');
+  const extension = vscode.extensions.getExtension('filispeen.local-actions-just-like-in-github');
+  assert.ok(extension, 'Extension filispeen.local-actions-just-like-in-github should be found');
 
   if (!extension.isActive) {
     await extension.activate();

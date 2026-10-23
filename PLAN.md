@@ -31,7 +31,7 @@ Out of scope for v1:
 ## Phase 0: Scaffold
 
 - [x] git init, .gitignore, .vscodeignore, both excluding the local reference/ folder
-- [x] package.json with name local-actions-just-like-github, displayName "Local Actions, Just Like GitHub", publisher filispeen, initial version 0.1.0, a recent stable engines.vscode
+- [x] package.json with name local-actions-just-like-in-github, displayName "Local Actions, Just Like In GitHub", publisher filispeen, initial version 0.1.0, a recent stable engines.vscode
 - [x] tsconfig (strict), ESLint flat config, esbuild scripts for host and webview, scripts from BUILD.md
 - [x] Activation entry and one command: Local Actions: Open Actions Page
 - [x] F5 launch configuration and tasks

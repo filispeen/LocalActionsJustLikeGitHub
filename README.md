@@ -1,4 +1,4 @@
-# Local Actions, Just Like GitHub
+# Local Actions, Just Like In GitHub
 
 Run GitHub Actions workflows locally through the `nektos/act` CLI with a page that looks and behaves just like GitHub Actions inside VS Code.
 

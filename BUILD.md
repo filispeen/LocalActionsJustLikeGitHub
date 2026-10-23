@@ -13,7 +13,7 @@
 
 ```
 git clone <repo-url>
-cd local-actions-just-like-github
+cd local-actions-just-like-in-github
 npm install
 ```
 
@@ -43,10 +43,10 @@ Defined in Phase 0 of PLAN.md.
 npm run package
 ```
 
-Produces local-actions-just-like-github-<version>.vsix. Install it to test:
+Produces local-actions-just-like-in-github-<version>.vsix. Install it to test:
 
 ```
-code --install-extension local-actions-just-like-github-<version>.vsix
+code --install-extension local-actions-just-like-in-github-<version>.vsix
 ```
 
 ## Release

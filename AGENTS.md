@@ -4,10 +4,10 @@ Rules for any AI agent working in this repository. Read fully before changing an
 
 ## Project
 
-Local Actions, Just Like GitHub: a VS Code extension that runs GitHub Actions workflows locally with nektos/act and shows runs in a page that looks and behaves like the GitHub Actions tab.
+Local Actions, Just Like In GitHub: a VS Code extension that runs GitHub Actions workflows locally with nektos/act and shows runs in a page that looks and behaves like the GitHub Actions tab.
 
-- Display name: Local Actions, Just Like GitHub
-- Package name: local-actions-just-like-github
+- Display name: Local Actions, Just Like In GitHub
+- Package name: local-actions-just-like-in-github
 - Publisher: filispeen
 - Settings and command prefix: localActions
 - License: ask the user before creating LICENSE. Do not pick one silently.
